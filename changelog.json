@@ -5,6 +5,9 @@
       "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path."
     ],
     "game": [
+      "Fixed Super Mario Eclipse's Delfino Plaza going almost black once you have more than 120 Shines.",
+      "Borderless on Windows is now a plain window covering the screen instead of a fullscreen mode, so it shouldn't blank the monitor as Exclusive fullscreen can.",
+      "Fixed the Dune Buds in Gelato Beach being silent: their filling and deflating sounds play again.",
       "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
       "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
       "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness."
