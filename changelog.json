@@ -5,6 +5,8 @@
       "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path."
     ],
     "game": [
+      "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
+      "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
       "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness."
     ]
   },
