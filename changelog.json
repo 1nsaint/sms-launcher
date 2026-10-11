@@ -4,7 +4,9 @@
     "launcher": [
       "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path."
     ],
-    "game": []
+    "game": [
+      "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness."
+    ]
   },
   "releases": [
     {
