@@ -67,6 +67,7 @@
           <div class="quick-grid">
             <label class="quick-control"><span>Screen format</span><select id="widescreen"><option value="off">Original 4:3</option><option value="16:9">Widescreen 16:9</option><option value="16:10">Widescreen 16:10</option><option value="21:9">Ultrawide 21:9</option></select></label>
             <label class="quick-control"><span>Frame rate</span><select id="frameRate"><option value="30">30 fps (GameCube native)</option><option value="60">60 fps (default)</option><option value="120">120 fps (optional)</option></select></label>
+            <label class="quick-control"><span>Language</span><select id="language"><option value="en">English</option><option value="fr" lang="fr">Français</option><option value="de" lang="de">Deutsch</option><option value="es" lang="es">Español</option><option value="it" lang="it">Italiano</option></select></label>
             <label class="switch compact eclipse-switch"><span><strong>Super Mario Eclipse <span id="eclipse-badge" class="badge">Optional</span></strong><small>Fan-made expansion</small></span><input id="eclipse" type="checkbox"><i></i></label>
           </div>
           <div class="quick-grid camera-grid">
@@ -77,6 +78,7 @@
             <label class="switch compact"><span><strong>Mouse look</strong><small>Turn the camera with the mouse; F10 frees it</small></span><input id="mouseCamera" type="checkbox"><i></i></label>
             <label class="quick-control range-control"><span>Mouse sensitivity <output id="mouseSensitivity-value" for="mouseSensitivity">100%</output></span><input id="mouseSensitivity" type="range" min="25" max="400" step="5" aria-label="Mouse sensitivity"></label>
           </div>
+          <div class="quick-note" id="language-note" hidden></div>
           <div class="quick-note" id="eclipse-note"><span id="eclipse-platform-note"></span><button id="install-eclipse" class="text-button">Install Eclipse</button></div>
         </section>
         <details class="installation-details"><summary><span><strong>Game files</strong><small>Setup folder and your disc file</small></span><span aria-hidden="true">⌄</span></summary><div class="installation-content"><div class="installation-row"><div><strong>Setup files</strong><span class="small-path" id="settings-repo-path"></span></div><button class="subtle" id="choose-repo-settings">Change folder</button></div><div class="installation-row"><div><strong>Your disc file</strong><span class="small-path" id="settings-rom-path"></span></div><button class="subtle" id="choose-rom-settings">Choose file</button></div></div></details>

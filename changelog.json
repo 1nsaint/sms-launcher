@@ -2,12 +2,14 @@
   "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
   "beta": {
     "launcher": [
-      "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path."
+      "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path.",
+      "Play in French, German, Spanish or Italian: choose Language under Settings → Gameplay, and the launcher downloads that language's pack before the game starts."
     ],
     "game": [
       "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
       "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
-      "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness."
+      "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness.",
+      "The game can be played in French, German, Spanish or Italian with a language pack, made from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens."
     ]
   },
   "releases": [

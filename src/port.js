@@ -83,6 +83,8 @@ function normalizeSettings(input = {}, platform = process.platform) {
     vsync: choiceSetting(input.vsync, ['off', 'on', 'adaptive'], 'off'),
     // Straight to the title screen, and the game's frame-time overlay at start.
     skipMovies: Boolean(input.skipMovies),
+    // The game's language: the disc's own English, or a language pack (French, German, Spanish, Italian).
+    language: choiceSetting(input.language, LANGUAGES, 'en'),
     // The heat-wave shimmer in sunny areas; on unless turned off.
     heatHaze: input.heatHaze !== false,
     // Which buttons the game's text shows (src/prompts.js): the GameCube's own, or another controller's or the keys.
@@ -204,6 +206,32 @@ function textureExtrasWanted(root, settings) {
   return Boolean(settings.textures) && textureExtrasSupported(root) && !textureExtrasInstalled(root);
 }
 
+// Languages other than the disc's English come from the port's language
+// packs (the European release's text and menus, published with the texture
+// extras). The port pins them in tools/mods/language-packs.json and records
+// the release it installed in mods/languages/<code>/.release.
+const LANGUAGES = ['en', 'fr', 'de', 'es', 'it'];
+function languagePackDirectory(root, code) { return path.join(root, 'mods', 'languages', code); }
+
+function languagePacksSupported(root) {
+  return fs.existsSync(path.join(root, 'tools', 'mods', 'language-packs.json'));
+}
+
+function languagePackInstalled(root, code) {
+  try {
+    const pinned = JSON.parse(fs.readFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'), 'utf8')).languages[code];
+    const installed = JSON.parse(fs.readFileSync(path.join(languagePackDirectory(root, code), '.release'), 'utf8'));
+    return typeof pinned.md5 === 'string' && /^[0-9a-f]{32}$/.test(pinned.md5) && installed.md5 === pinned.md5;
+  } catch (_) { return false; }
+}
+
+// The pack to download for these settings: a language other than English, a
+// port that has packs, and not the pinned release installed.
+function languagePackWanted(root, settings) {
+  const code = settings.language;
+  return LANGUAGES.includes(code) && code !== 'en' && languagePacksSupported(root) && !languagePackInstalled(root, code);
+}
+
 function cutscenePackSupported(root) {
   return ['install_cutscenes.py', 'cutscene-release.json'].some(file =>
     fs.existsSync(path.join(root, 'tools', 'media', file)));
@@ -259,6 +287,7 @@ function buildEnvironment(settings, disc, root) {
     SMS_FULLSCREEN: settings.fullscreen ? (settings.fullscreenMode === 'exclusive' ? 'exclusive' : '1') : '0',
     SMS_VSYNC: settings.vsync === 'adaptive' ? 'adaptive' : settings.vsync === 'on' ? '1' : '0',
     SMS_SKIP_MOVIES: settings.skipMovies ? '1' : '0',
+    SMS_LANGUAGE: LANGUAGES.includes(settings.language) ? settings.language : 'en',
     SMS_SOFT_TRIGGER: String(settings.softTrigger ?? 40),
     SMS_HEAT_HAZE: settings.heatHaze === false ? '0' : '1',
     SMS_BUTTON_PROMPTS: prompts.normalizeStyle(settings.buttonPrompts),
@@ -336,10 +365,11 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
     ? path.join(process.resourcesPath, 'scripts', 'texture-progress.py')
     : path.resolve(__dirname, '..', 'scripts', 'texture-progress.py');
   if (platform !== 'win32') {
-    const file = ['python', 'textures', 'texture-extras', 'cutscenes'].includes(action) ? 'python3' : path.join(root, `${action}.sh`);
+    const file = ['python', 'textures', 'texture-extras', 'language', 'cutscenes'].includes(action) ? 'python3' : path.join(root, `${action}.sh`);
     const commandArgs = action === 'python' ? ['tools/mods/get.py', 'eclipse', '--iso', ...args]
       : action === 'textures' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py')]
         : action === 'texture-extras' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'extras', '--if-outdated']
+        : action === 'language' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'language', args[0], '--if-outdated']
         : action === 'cutscenes' ? ['tools/media/install_cutscenes.py', '--iso', ...args] : args;
     return { command: file, args: commandArgs, cwd: root, env: environment };
   }
@@ -354,12 +384,15 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
       ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py'
     : action === 'texture-extras'
       ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py extras --if-outdated'
+    : action === 'language'
+      ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py language "$3" --if-outdated'
     : action === 'clean'
       ? 'cd "$(cygpath -u "$1")" && ./clean.sh "${@:2}"'
       : `cd "$(cygpath -u "$1")" && ./${action}.sh "$(cygpath -u "$2")"`;
   return {
     command: bash,
-    args: ['-c', script, 'sms-launcher', root, ...(action === 'textures' || action === 'texture-extras' ? [textureProgress] : args)], cwd: root,
+    args: ['-c', script, 'sms-launcher', root, ...(action === 'textures' || action === 'texture-extras' ? [textureProgress]
+      : action === 'language' ? [textureProgress, args[0]] : args)], cwd: root,
     env: msysEnvironment(msys, environment)
   };
 }
@@ -404,5 +437,6 @@ function eclipseRunCommand(...args) { return gameRunCommand(...args); }
 
 module.exports = { PORT_URL, ECLIPSE_ISO, platformInfo, isPort, validateRom, normalizeSettings, savedSettings,
   texturePackDirectory, texturePackInstalled, textureExtrasDirectory, textureExtrasSupported, textureExtrasInstalled, textureExtrasWanted,
+  LANGUAGES, languagePackDirectory, languagePacksSupported, languagePackInstalled, languagePackWanted,
   cutscenePackDirectory, cutscenePackInstalled, cutscenePackSupported, cutscenePackRequirements, wantsCutscenes, hdVisualsInstalled, buildEnvironment, gameDisc, binaryPath,
   commandFor, eclipseBuildCommand, eclipseRunCommand, playableInstall };

@@ -505,6 +505,24 @@ async function updateTextureExtras(root, settings) {
   }
 }
 
+const LANGUAGE_NAMES = { fr: 'French', de: 'German', es: 'Spanish', it: 'Italian' };
+
+// The chosen language's pack, when it is missing or not the pinned release. A
+// failed download does not stop the game: it plays in English, and setup tries
+// again next time.
+async function updateLanguagePack(root, settings) {
+  if (!port.languagePackWanted(root, settings)) return;
+  const name = LANGUAGE_NAMES[settings.language] || settings.language;
+  try {
+    await ensureBuildTools();
+    const cmd = port.commandFor(root, 'language', [settings.language], process.platform, toolEnv());
+    await launch(cmd.command, cmd.args, { cwd: cmd.cwd, env: cmd.env }, 'Install language pack');
+    if (!port.languagePackInstalled(root, settings.language)) throw new Error('the installer finished without it');
+  } catch (error) {
+    log(`The ${name} language pack was not installed (${error.message}); the game plays in English and setup tries again next time.`);
+  }
+}
+
 async function installTextures(root = requireRepo()) {
   await ensureBuildTools();
   if (config.settings.textures && !port.texturePackInstalled(root)) {
@@ -548,6 +566,7 @@ async function build(forceFresh = false) {
   }
   if (!port.hdVisualsInstalled(root, settings)) await installTextures(root);
   else await updateTextureExtras(root, settings);
+  await updateLanguagePack(root, settings);
   if (settings.eclipse && !fs.existsSync(path.join(root, port.ECLIPSE_ISO))) await installEclipse(root);
   const disc = port.gameDisc(root, rom, settings.eclipse);
   const env = toolEnv(port.buildEnvironment(settings, disc, root));
@@ -577,12 +596,13 @@ async function setupGame() {
   if (!game.isCurrent(config.repo, config.settings, currentSource())) await build();
   else if (!port.hdVisualsInstalled(config.repo, config.settings)) await installTextures();
   else await updateTextureExtras(config.repo, config.settings);
+  await updateLanguagePack(config.repo, config.settings);
   return state();
 }
 
 const PLAYER_SETTINGS = [
   'volume', 'invertCameraX', 'invertCameraY', 'keyBindings', 'padBindings', 'softTrigger', 'freeCamera', 'cameraSpeed', 'mouseCamera',
-  'mouseSensitivity', 'skipMovies', 'heatHaze', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'overlay', 'fullscreenMode', 'exclusiveResolution', 'display', 'vsync',
+  'mouseSensitivity', 'skipMovies', 'language', 'heatHaze', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'overlay', 'fullscreenMode', 'exclusiveResolution', 'display', 'vsync',
   'msaa', 'fxaa', 'anisotropic', 'sharpen', 'fsrMode', 'brightness', 'aspect', 'presentFilter'
 ];
 function promptDirectory() { return path.join(app.getPath('userData'), 'prompts'); }
@@ -685,6 +705,7 @@ async function launchGame() {
   if (!binaryReady() || (config.settings.autoUpdate && !game.isCurrent(config.repo, config.settings, currentSource()))) await build();
   if (!port.hdVisualsInstalled(config.repo, config.settings)) await installTextures();
   else await updateTextureExtras(config.repo, config.settings);
+  await updateLanguagePack(config.repo, config.settings);
   return play();
 }
 
@@ -751,6 +772,8 @@ function state() {
     texturesInstalled: repoReady && port.texturePackInstalled(config.repo),
     cutscenesInstalled: repoReady && port.cutscenePackInstalled(config.repo),
     cutscenesSupported: repoReady && port.cutscenePackSupported(config.repo),
+    languagesSupported: repoReady && port.languagePacksSupported(config.repo),
+    languageInstalled: repoReady && config.settings.language !== 'en' && port.languagePackInstalled(config.repo, config.settings.language),
     cutsceneRequirements: repoReady ? port.cutscenePackRequirements(config.repo) : null,
     binaryReady: ready,
     tools: toolsStatus(),

@@ -292,6 +292,46 @@ test('texture extras are downloaded again only when the port pins another releas
       [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'extras', '--if-outdated']);
 });
 
+test('the game plays in English unless another language is chosen', () => {
+  assert.equal(port.normalizeSettings({}).language, 'en');
+  assert.equal(port.normalizeSettings({ language: 'klingon' }).language, 'en');
+  for (const code of ['en', 'fr', 'de', 'es', 'it']) {
+    const settings = port.normalizeSettings({ language: code });
+    assert.equal(settings.language, code);
+    assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_LANGUAGE, code);
+  }
+});
+
+test('a language pack is downloaded when that language is chosen and its pinned release is missing', t => {
+  const root = temporary(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const french = port.normalizeSettings({ language: 'fr' }), english = port.normalizeSettings({});
+  const pin = md5 => {
+    fs.mkdirSync(path.join(root, 'tools', 'mods'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'),
+      JSON.stringify({ languages: { fr: { md5 }, de: { md5: '0123456789abcdef0123456789abcdef' } } }));
+  };
+  const record = md5 => {
+    fs.mkdirSync(port.languagePackDirectory(root, 'fr'), { recursive: true });
+    fs.writeFileSync(path.join(port.languagePackDirectory(root, 'fr'), '.release'), JSON.stringify({ md5 }));
+  };
+  // A game version without language packs: nothing to download, and it plays in English.
+  assert.equal(port.languagePacksSupported(root), false);
+  assert.equal(port.languagePackWanted(root, french), false);
+  pin('9352b8c1462182ca1a5493eef4062f1e');
+  assert.equal(port.languagePackWanted(root, french), true);
+  assert.equal(port.languagePackWanted(root, english), false); // English is the disc's own
+  record('9352b8c1462182ca1a5493eef4062f1e');
+  assert.equal(port.languagePackInstalled(root, 'fr'), true);
+  assert.equal(port.languagePackWanted(root, french), false);
+  assert.equal(port.languagePackInstalled(root, 'de'), false);
+  pin('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');                     // a newer release pinned
+  assert.equal(port.languagePackWanted(root, french), true);
+  const progressScript = path.resolve(__dirname, '..', 'scripts', 'texture-progress.py');
+  for (const platform of ['linux', 'darwin'])
+    assert.deepEqual(port.commandFor(root, 'language', ['fr'], platform).args,
+      [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'language', 'fr', '--if-outdated']);
+});
+
 test('Eclipse builder uses its own CMake tree without bundling the patched disc', () => {
   if (process.platform !== 'linux') return;
   const dir = temporary();
@@ -355,6 +395,9 @@ test('Windows command passes an image path as data to MSYS2 Bash', () => {
     const extras = port.commandFor('C:\\port', 'texture-extras', [], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
     assert.match(extras.args[1], /tools\/mods\/get\.py extras --if-outdated$/);
     assert.equal(extras.args[4], path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'));
+    const language = port.commandFor('C:\\port', 'language', ['es'], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
+    assert.match(language.args[1], /tools\/mods\/get\.py language "\$3" --if-outdated$/);
+    assert.deepEqual(language.args.slice(3), ['C:\\port', path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'), 'es']);
   } finally {
     if (old === undefined) delete process.env.MSYS2_ROOT;
     else process.env.MSYS2_ROOT = old;

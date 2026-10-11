@@ -114,6 +114,13 @@ The first time each HD texture is used, the game also builds its smaller version
 
 **Prepare shaders ahead** (on by default) builds the graphics effects each level is known to use while the level loads, instead of the first time they're drawn. Without it, the first moments in a new level stutter on the first play on each computer. Turn it off to load levels slightly faster on the first play.
 
+### Language
+
+Settings → Gameplay → **Language** plays the game in English (the default), Français, Deutsch, Español or Italiano.
+The other languages come from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens, made into a small pack (about 1 MB) that the launcher downloads before the game starts.
+You still use your North American disc, and your saves work in every language.
+Super Mario Eclipse plays in English.
+
 ### Updates
 
 When a game update is ready, the main button becomes **Update & play**. Choose **Skip update & play** beside it to launch your installed version without downloading or rebuilding. Your current game stays available until the new setup succeeds.

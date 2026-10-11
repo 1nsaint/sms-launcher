@@ -51,6 +51,8 @@ function activityFromLine(line) {
     return { detail: 'Downloading HD textures (about 1 GB)', percent: null };
   if (/^Downloading Super Mario Sunshine HD texture extras/.test(value))
     return { detail: 'Downloading HD texture extras', percent: null };
+  if (/^Downloading Super Mario Sunshine language packs/.test(value))
+    return { detail: 'Downloading the language pack', percent: null };
   const textureDownload = value.match(/^Texture download: (\d+)\/(\d+) bytes$/);
   if (textureDownload) {
     const received = Number(textureDownload[1]), total = Number(textureDownload[2]);
