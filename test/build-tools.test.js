@@ -108,6 +108,25 @@ test('fallback play can use a recorded older Windows toolset without downloading
   assert.equal(current.PATH.includes(path.join(dir, 'msys64', 'mingw32', 'bin')), false);
 });
 
+test('Windows build keeps the system Path that a copied environment spells Path', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-path-tools-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'msys64', 'usr', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'msys64', 'usr', 'bin', 'bash.exe'), '');
+  // A copy of process.env on Windows, as port.buildEnvironment makes it.
+  const env = tools.environmentAtRoot(root, { Path: 'C:\\WINDOWS\\system32', SMS_ARCH: '64' }, 'win32');
+  assert.deepEqual(Object.keys(env).filter(key => key.toUpperCase() === 'PATH'), ['PATH']);
+  assert.ok(env.PATH.startsWith(path.join(root, 'msys64', 'mingw64', 'bin')));
+  assert.ok(env.PATH.endsWith(';C:\\WINDOWS\\system32'));
+  const port = require('../src/port');
+  for (const command of [port.commandFor(root, 'build', [], 'win32', { ...env, Path: 'stale' }),
+    port.commandFor(root, 'build', [], 'win32', { Path: 'C:\\WINDOWS\\system32', MSYS2_ROOT: path.join(root, 'msys64') }),
+    port.commandFor(root, 'run', ['disc.iso'], 'win32', { Path: 'C:\\WINDOWS\\system32', MSYS2_ROOT: path.join(root, 'msys64') })]) {
+    assert.deepEqual(Object.keys(command.env).filter(key => key.toUpperCase() === 'PATH'), ['PATH']);
+    assert.ok(command.env.PATH.endsWith(';C:\\WINDOWS\\system32'));
+  }
+});
+
 test('32-bit Windows target uses x64 helpers and a cross compiler, with target DLLs first', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-cross-tools-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));

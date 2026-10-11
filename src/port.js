@@ -6,6 +6,7 @@ const { normalizeChannel } = require('./update-channel');
 const bindings = require('./bindings');
 const prompts = require('./prompts');
 const presets = require('./presets');
+const { prependWindowsPath } = require('./windows-path');
 
 const PORT_URL = 'https://github.com/chasem-dev/sms-pc-port.git';
 const ECLIPSE_ISO = path.join('mods', 'eclipse', 'Super Mario Eclipse v1.1.0.iso');
@@ -320,6 +321,14 @@ function playableInstall(saved, platform = process.platform) {
   return { repo: saved.repo, settings, rom: saved.rom, saveDirectory: saved.saveDirectory || null };
 }
 
+// The MSYS shell's environment: the MinGW tools ahead of the Windows path.
+function msysEnvironment(msys, environment) {
+  const bins = environment.SMS_WINDOWS_32_CROSS ? []
+    : [path.join(msys, environment.SMS_ARCH === '32' ? 'mingw32' : 'mingw64', 'bin'), path.join(msys, 'usr', 'bin')];
+  return { ...prependWindowsPath(environment, bins),
+    MSYSTEM: environment.SMS_ARCH === '32' && !environment.SMS_WINDOWS_32_CROSS ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1' };
+}
+
 function commandFor(root, action, args = [], platform = process.platform, environment = process.env) {
   if (platform === 'win32' && action === 'run')
     return gameRunCommand(root, { arch: environment.SMS_ARCH || '64' }, args[0], platform, environment);
@@ -351,9 +360,7 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
   return {
     command: bash,
     args: ['-c', script, 'sms-launcher', root, ...(action === 'textures' || action === 'texture-extras' ? [textureProgress] : args)], cwd: root,
-    env: { ...environment, MSYSTEM: environment.SMS_ARCH === '32' && !environment.SMS_WINDOWS_32_CROSS ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1',
-      PATH: environment.SMS_WINDOWS_32_CROSS ? environment.PATH : [path.join(msys, environment.SMS_ARCH === '32' ? 'mingw32' : 'mingw64', 'bin'),
-        path.join(msys, 'usr', 'bin'), environment.PATH || ''].join(path.delimiter) }
+    env: msysEnvironment(msys, environment)
   };
 }
 
@@ -369,9 +376,7 @@ function eclipseBuildCommand(root, settings, platform = process.platform, enviro
     command: bash,
     args: ['-c', 'exec "$(cygpath -u "$1")" "$(cygpath -u "$2")" "$3"', 'sms-launcher', script, root, settings.arch],
     cwd: root,
-    env: { ...environment, MSYSTEM: environment.SMS_ARCH === '32' && !environment.SMS_WINDOWS_32_CROSS ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1',
-      PATH: environment.SMS_WINDOWS_32_CROSS ? environment.PATH : [path.join(msys, environment.SMS_ARCH === '32' ? 'mingw32' : 'mingw64', 'bin'),
-        path.join(msys, 'usr', 'bin'), environment.PATH || ''].join(path.delimiter) }
+    env: msysEnvironment(msys, environment)
   };
 }
 
@@ -391,7 +396,7 @@ function gameRunCommand(root, settings, disc, platform = process.platform, envir
     : [path.join(msys, runtime, 'bin')];
   return {
     command: binary, args: [disc], cwd: root,
-    env: { ...environment, PATH: [...bins, environment.PATH || environment.Path || ''].join(';') }
+    env: prependWindowsPath(environment, bins)
   };
 }
 

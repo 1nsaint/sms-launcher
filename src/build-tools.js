@@ -10,6 +10,7 @@ const assets = require('./tool-assets.json');
 const TOOLSET = assets.toolset;
 const macAssets = require('./mac-tool-assets.json');
 const macTools = require('./mac-tools');
+const { prependWindowsPath } = require('./windows-path');
 let macInspection;
 let macCheck;
 let macCheckedAt = 0;
@@ -161,17 +162,16 @@ function environmentAtRoot(root, base = process.env, platform = process.platform
   }
   const msys = path.join(root, 'msys64');
   if (base.SMS_ARCH === '32' && fs.existsSync(path.join(msys, 'opt', 'bin', 'i686-w64-mingw32-g++.exe'))) {
-    return { ...base, MSYS2_ROOT: msys, MSYSTEM: 'MINGW64', CHERE_INVOKING: '1', SMS_WINDOWS_32_CROSS: '1',
+    return { ...prependWindowsPath(base, [path.join(msys, 'opt', 'i686-w64-mingw32', 'bin'), path.join(msys, 'mingw32', 'bin'),
+      path.join(msys, 'mingw64', 'bin'), path.join(msys, 'usr', 'bin')]),
+      MSYS2_ROOT: msys, MSYSTEM: 'MINGW64', CHERE_INVOKING: '1', SMS_WINDOWS_32_CROSS: '1',
       CC: path.join(msys, 'opt', 'bin', 'i686-w64-mingw32-gcc.exe'),
       CXX: path.join(msys, 'opt', 'bin', 'i686-w64-mingw32-g++.exe'),
-      CMAKE_PREFIX_PATH: path.join(msys, 'mingw32'),
-      PATH: [path.join(msys, 'opt', 'i686-w64-mingw32', 'bin'), path.join(msys, 'mingw32', 'bin'),
-        path.join(msys, 'mingw64', 'bin'), path.join(msys, 'usr', 'bin'), base.PATH || ''].join(path.delimiter) };
+      CMAKE_PREFIX_PATH: path.join(msys, 'mingw32') };
   }
   const target = base.SMS_ARCH === '32' ? 'mingw32' : 'mingw64';
-  return { ...base, MSYS2_ROOT: msys, MSYSTEM: target === 'mingw32' ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1',
-    PATH: [path.join(msys, target, 'bin'),
-      path.join(msys, 'usr', 'bin'), base.PATH || ''].join(path.delimiter) };
+  return { ...prependWindowsPath(base, [path.join(msys, target, 'bin'), path.join(msys, 'usr', 'bin')]),
+    MSYS2_ROOT: msys, MSYSTEM: target === 'mingw32' ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1' };
 }
 
 function fetchVerified(url, destination, expected, onProgress = () => {}, redirects = 0) {
