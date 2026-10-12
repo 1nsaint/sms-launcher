@@ -127,6 +127,31 @@ test('Windows build keeps the system Path that a copied environment spells Path'
   }
 });
 
+test('Windows build tools ignore another Python install\'s environment', t => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-python-env-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  fs.mkdirSync(path.join(root, 'msys64', 'usr', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'msys64', 'usr', 'bin', 'bash.exe'), '');
+  const host = { Path: 'C:\\WINDOWS\\system32', PYTHONPATH: 'C:\\Python312\\DLLs', PythonHome: 'C:\\Python312',
+    PYTHONSTARTUP: 'startup.py', PYTHONUSERBASE: 'C:\\Users\\me\\py', PythonNoUserSite: '', PYTHONUTF8: '1' };
+  const python = env => Object.keys(env).filter(key => key.toUpperCase().startsWith('PYTHON')).sort();
+  for (const arch of ['64', '32']) {
+    const env = tools.environmentAtRoot(root, { ...host, SMS_ARCH: arch }, 'win32');
+    assert.deepEqual(python(env), ['PYTHONNOUSERSITE', 'PYTHONUTF8']);
+    assert.equal(env.PYTHONNOUSERSITE, '1');
+    const command = require('../src/port').commandFor(root, 'textures', [], 'win32', env);
+    assert.deepEqual(python(command.env), ['PYTHONNOUSERSITE', 'PYTHONUTF8']);
+  }
+  const cross = path.join(root, 'msys64', 'opt', 'bin', 'i686-w64-mingw32-g++.exe');
+  fs.mkdirSync(path.dirname(cross), { recursive: true });
+  fs.writeFileSync(cross, 'fixture');
+  const env = tools.environmentAtRoot(root, { ...host, SMS_ARCH: '32' }, 'win32');
+  assert.equal(env.SMS_WINDOWS_32_CROSS, '1');
+  assert.deepEqual(python(env), ['PYTHONNOUSERSITE', 'PYTHONUTF8']);
+  fs.mkdirSync(path.join(root, 'env'));
+  assert.equal(tools.environmentAtRoot(root, { PYTHONPATH: 'kept' }, 'linux').PYTHONPATH, 'kept');
+});
+
 test('32-bit Windows target uses x64 helpers and a cross compiler, with target DLLs first', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-cross-tools-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
