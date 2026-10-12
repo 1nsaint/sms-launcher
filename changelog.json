@@ -19,7 +19,10 @@
       "Fixed the game crashing in Sirena Beach when the Phantamanta first splits into smaller mantas.",
       "Fixed Super Mario Eclipse's ending movies losing their story when you skip them with A: skipping after the Bowser fight no longer leaves Delfino Plaza flooded with Shadow Mario back, and skipping the staff roll no longer loses its Shine.",
       "Fixed Hotel Delfino's Boo blocks looking grey-blue and striped with HD textures on.",
-      "Fixed Luigi being unable to pick up nozzles from boxes in Super Mario Eclipse."
+      "Fixed Luigi being unable to pick up nozzles from boxes in Super Mario Eclipse.",
+      "Fixed Super Mario Eclipse's music going missing after changing stages: secret courses' songs start with the course instead of after its intro, and stages such as Lacrima's hotel, Vaporware, Daisy Cruiser and Pizza Time play their music again.",
+      "Fixed Super Mario Eclipse crashing when you enter Red Lily's second episode.",
+      "A warp menu: open the debug overlay with the ` key, then press F8 or your controller's Back button to jump to any stage, episode or secret course, in the original game and in Super Mario Eclipse."
     ]
   },
   "releases": [
