@@ -159,9 +159,10 @@ Export your North American Super Mario Sunshine save (`GMSE01`, `super_mario_sun
 The **Add to Steam** banner on the home screen, under the Discord one, adds the launcher to your Steam library as a non-Steam game called **Super Mario Sunshine**, with artwork from [SteamGridDB](https://www.steamgriddb.com/game/34899): the library capsule, wide capsule, header, logo and icon. You can then start it from Steam, Big Picture, or a Steam Deck's Game Mode. On a Steam Deck, add it from Desktop Mode.
 
 - It first asks whether to **Skip Launcher**. With it on, the shortcut gets `--play`, so Steam starts the game straight away (see [Start the game from Steam](#start-the-game-from-steam)); turn it off to open the launcher from Steam instead. Your other launch options are kept.
-- If Steam is open, it closes for a moment and opens again, because Steam picks up new non-Steam games only when it starts.
+- If Steam is open, it closes for a moment, because Steam picks up new non-Steam games only when it starts. On Windows it opens again afterwards; on Linux and the Steam Deck, open Steam again yourself once the launcher says it was added.
 - The launcher is added for the Steam account that signed in last. Choosing it again updates the same entry instead of adding another.
-- Steam's list of non-Steam games is backed up first, as `shortcuts.vdf.sms-launcher-backup` beside it.
+- Your other non-Steam games are kept exactly as they were: the launcher checks the new list before saving it, and changes nothing if any game would be missing.
+- Steam's list of non-Steam games is backed up first, as `shortcuts.vdf.sms-launcher-backup` beside it (in `userdata/<account>/config` in Steam's folder; `~/.local/share/Steam` on Linux and the Steam Deck). That first copy is never replaced; choosing Add to Steam again saves another copy with the date and time in its name. To put a list back, exit Steam, copy the backup over `shortcuts.vdf`, and start Steam.
 - The artwork is not part of the launcher. It downloads from SteamGridDB when you choose Add to Steam and is saved only in Steam's artwork folder.
 - The banner shows on Windows and Linux, from the installed launcher or the AppImage, while Steam is installed and the launcher is not in its library yet.
 

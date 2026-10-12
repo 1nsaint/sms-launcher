@@ -131,17 +131,35 @@ test('adding to Steam writes the shortcut and artwork, and backs up the old file
   const [first] = steam.addShortcut(options);
   assert.equal(first.added, true);
   assert.equal(first.artwork, 4);
+  assert.equal(first.kept, 1);
+  assert.equal(first.backup, path.join(config, 'shortcuts.vdf.sms-launcher-backup'));
   assert.deepEqual(fs.readFileSync(path.join(config, 'shortcuts.vdf.sms-launcher-backup')), old);
   const grid = fs.readdirSync(path.join(config, 'grid')).sort();
   assert.deepEqual(grid, [`${first.appId}_hero.png`, `${first.appId}_icon.png`, `${first.appId}_logo.png`, `${first.appId}p.png`]);
   const list = field(steam.parseVdf(fs.readFileSync(path.join(config, 'shortcuts.vdf'))), 'shortcuts');
   assert.equal(list.length, 2);
   assert.equal(field(list[1][2], 'icon'), path.join(config, 'grid', `${first.appId}_icon.png`));
-  // again: the same shortcut, no copy
+  // again: the same shortcut, no copy, and the first backup stays as it was
+  const added = fs.readFileSync(path.join(config, 'shortcuts.vdf'));
   const [second] = steam.addShortcut(options);
   assert.equal(second.added, false);
   assert.equal(second.appId, first.appId);
+  assert.equal(second.kept, 1);
   assert.equal(field(steam.parseVdf(fs.readFileSync(path.join(config, 'shortcuts.vdf'))), 'shortcuts').length, 2);
+  assert.deepEqual(fs.readFileSync(path.join(config, 'shortcuts.vdf.sms-launcher-backup')), old);
+  assert.match(path.basename(second.backup), /^shortcuts\.vdf\.sms-launcher-backup-\d{4}-\d\d-\d\dT/);
+  assert.deepEqual(fs.readFileSync(second.backup), added);
+});
+
+test("shortcuts.vdf is not written unless every other non-Steam game is still in it", () => {
+  const root = steam.parseVdf(steamFile());
+  const others = field(root, 'shortcuts').map(entry => steam.serializeVdf([entry]).toString('hex'));
+  assert.ok(steam.checkedVdf(root, others, 1).equals(steamFile()));
+  assert.throws(() => steam.checkedVdf([[MAP, 'shortcuts', []]], others, 0), /Nothing was changed/);
+  assert.throws(() => steam.checkedVdf(root, others, 2), /Nothing was changed/);
+  const changed = steam.parseVdf(steamFile());
+  field(changed, 'shortcuts')[0][2].find(entry => entry[1] === 'appname')[2] = 'Renamed';
+  assert.throws(() => steam.checkedVdf(changed, others, 1), /Nothing was changed/);
 });
 
 test('an account without shortcuts.vdf gets a new one', t => {
