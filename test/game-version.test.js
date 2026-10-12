@@ -102,6 +102,45 @@ test('new source snapshots share optional downloads and keep user settings in th
   assert.equal(fs.readFileSync(path.join(root, 'settings.txt'), 'utf8'), 'save_dir=./custom-saves');
 });
 
+test('old game versions are removed, keeping the current and previous ones and HD packs they link to', async t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sms prune-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const base = path.join(home, 'sms-pc-port');
+  const version = name => {
+    const root = path.join(`${base}.releases`, name);
+    fs.mkdirSync(path.join(root, 'mods'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'game'), name);
+    return root;
+  };
+  fs.mkdirSync(path.join(base, 'mods'), { recursive: true });
+  const oldest = version('a-oldest');
+  fs.mkdirSync(path.join(oldest, 'mods', 'textures'));
+  fs.writeFileSync(path.join(oldest, 'mods', 'textures', 'tex1_test.png'), 'textures');
+  const older = version('b-older');
+  game.carryUserFiles(oldest, older);
+  const previous = version('c-previous');
+  game.carryUserFiles(older, previous);
+  const current = version('d-current');
+  game.carryUserFiles(previous, current);
+  const withSaves = version('e-saves');
+  fs.mkdirSync(path.join(withSaves, 'custom-saves'));
+  const interrupted = version('f-current.download-123');
+
+  const errors = [];
+  const removed = await game.pruneSnapshots(base, [current, previous],
+    [path.join(withSaves, 'custom-saves'), null], error => errors.push(error));
+  assert.deepEqual(errors, []);
+  assert.deepEqual(removed.sort(), [oldest, older, interrupted].sort());
+  for (const folder of [oldest, older, interrupted]) assert.equal(fs.existsSync(folder), false);
+  for (const folder of [previous, current, withSaves, base]) assert.equal(fs.existsSync(folder), true);
+  // The texture pack now lives in a kept version, and both kept versions still see it.
+  assert.equal(fs.lstatSync(path.join(current, 'mods', 'textures')).isDirectory(), true);
+  for (const root of [previous, current])
+    assert.equal(fs.readFileSync(path.join(root, 'mods', 'textures', 'tex1_test.png'), 'utf8'), 'textures');
+  assert.deepEqual(await game.pruneSnapshots(base, [current, previous]), [withSaves]);
+  assert.deepEqual(await game.pruneSnapshots(path.join(home, 'missing'), [current]), []);
+});
+
 test('each OS and Mac architecture has its own tool version without changing existing archive hashes', () => {
   for (const [platform, arch] of [['linux','x64'],['win32','x64'],['darwin','x64'],['darwin','arm64']])
     assert.equal(tools.toolsetFor(platform, arch), tools.assetFor(platform, arch).toolset);

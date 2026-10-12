@@ -4,7 +4,8 @@
     "launcher": [
       "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path.",
       "Play in French, German, Spanish or Italian: choose Language under Settings → Gameplay, and the launcher downloads that language's pack before the game starts.",
-      "Fixed the Spanish language pack failing to install on Windows PCs set to some non-English system languages, such as Russian, with \"UnicodeEncodeError: 'charmap' codec can't encode character\"."
+      "Fixed the Spanish language pack failing to install on Windows PCs set to some non-English system languages, such as Russian, with \"UnicodeEncodeError: 'charmap' codec can't encode character\".",
+      "Fixed every game update leaving the previous versions' files behind, which used several GB of disk space each. The launcher now keeps only the current and previous versions, and frees up the space from older ones the next time it opens."
     ],
     "game": [
       "Fixed Super Mario Eclipse's Delfino Plaza going almost black once you have more than 120 Shines.",
