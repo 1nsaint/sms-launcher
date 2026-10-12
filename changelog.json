@@ -1,38 +1,48 @@
 {
   "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
   "beta": {
-    "launcher": [
-      "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path.",
-      "Play in French, German, Spanish or Italian: choose Language under Settings → Gameplay, and the launcher downloads that language's pack before the game starts.",
-      "Fixed the Spanish language pack failing to install on Windows PCs set to some non-English system languages, such as Russian, with \"UnicodeEncodeError: 'charmap' codec can't encode character\".",
-      "Fixed the game build and HD texture setup crashing on some Windows PCs (\"Access violation\", or exit code 2816) when another Python install's settings were set on the PC.",
-      "Fixed every game update leaving the previous versions' files behind, which used several GB of disk space each. The launcher now keeps only the current and previous versions, and frees up the space from older ones the next time it opens.",
-      "Add to Steam is safer: it checks that all your other non-Steam games are still in Steam's list before saving it, never replaces its first backup of that list, and on Linux and the Steam Deck no longer restarts Steam itself, which could open Game Mode inside Desktop Mode.",
-      "Windows: advanced players can build with their own MSYS2 instead of the launcher's downloaded tools by setting the SMS_MSYS2_ROOT environment variable to its folder, for example on Windows 7 with the last MSYS2 that runs there.",
-      "Fixed setup files failing to download when you choose a drive root as the download location.",
-      "Fixed game setup failing on some older Windows setups with \"fork: Resource temporarily unavailable\" while preparing the game files, and game updates now reuse the previous version's decomp download instead of downloading it all again."
-    ],
-    "game": [
-      "Fixed Super Mario Eclipse's Delfino Plaza going almost black once you have more than 120 Shines.",
-      "Borderless on Windows is now a plain window covering the screen instead of a fullscreen mode, so it shouldn't blank the monitor as Exclusive fullscreen can.",
-      "Fixed the Dune Buds in Gelato Beach being silent: their filling and deflating sounds play again.",
-      "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
-      "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
-      "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness.",
-      "The game can be played in French, German, Spanish or Italian with a language pack, made from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens.",
-      "Fixed accented letters such as á, ü and ñ in characters' speech bubbles in French, German, Spanish and Italian: a word like \"más\" no longer has its last letter dropped below the line.",
-      "Fixed the game crashing in Sirena Beach when the Phantamanta first splits into smaller mantas.",
-      "Fixed Super Mario Eclipse's ending movies losing their story when you skip them with A: skipping after the Bowser fight no longer leaves Delfino Plaza flooded with Shadow Mario back, and skipping the staff roll no longer loses its Shine.",
-      "Fixed Hotel Delfino's Boo blocks looking grey-blue and striped with HD textures on.",
-      "Fixed Luigi being unable to pick up nozzles from boxes in Super Mario Eclipse.",
-      "Fixed Super Mario Eclipse's music going missing after changing stages: secret courses' songs start with the course instead of after its intro, and stages such as Lacrima's hotel, Vaporware, Daisy Cruiser and Pizza Time play their music again.",
-      "Fixed Super Mario Eclipse crashing when you enter Red Lily's second episode.",
-      "Fixed Super Mario Eclipse crashing when you enter the Bowser fight that opens in Delfino Plaza after 239 Shines.",
-      "Fixed Super Mario Eclipse's Star Bits sometimes getting the wrong colour, and a memory error in its settings menu text that could crash the game.",
-      "A warp menu: open the debug overlay with the ` key, then press F8 or your controller's Back button to jump to any stage, episode or secret course, in the original game and in Super Mario Eclipse."
-    ]
+    "launcher": [],
+    "game": []
   },
   "releases": [
+    {
+      "version": "0.1.58",
+      "date": "2026-10-12",
+      "launcher": [
+        "Fixed the game failing to build on some Windows PCs with \"The C compiler is not able to compile a simple test program\", caused by the build losing the Windows system folders from its search path.",
+        "Play in French, German, Spanish or Italian: choose Language under Settings → Gameplay, and the launcher downloads that language's pack before the game starts.",
+        "Fixed the Spanish language pack failing to install on Windows PCs set to some non-English system languages, such as Russian, with \"UnicodeEncodeError: 'charmap' codec can't encode character\".",
+        "Fixed the game build and HD texture setup crashing on some Windows PCs (\"Access violation\", or exit code 2816) when another Python install's settings were set on the PC.",
+        "Fixed every game update leaving the previous versions' files behind, which used several GB of disk space each. The launcher now keeps only the current and previous versions, and frees up the space from older ones the next time it opens.",
+        "Add to Steam is safer: it checks that all your other non-Steam games are still in Steam's list before saving it, never replaces its first backup of that list, and on Linux and the Steam Deck no longer restarts Steam itself, which could open Game Mode inside Desktop Mode.",
+        "Windows: advanced players can build with their own MSYS2 instead of the launcher's downloaded tools by setting the SMS_MSYS2_ROOT environment variable to its folder, for example on Windows 7 with the last MSYS2 that runs there.",
+        "Fixed setup files failing to download when you choose a drive root as the download location.",
+        "Fixed game setup failing on some older Windows setups with \"fork: Resource temporarily unavailable\" while preparing the game files, and game updates now reuse the previous version's decomp download instead of downloading it all again."
+      ],
+      "game": {
+        "version": "2026.10.12.1",
+        "commit": "c1da79da5dc5814d330d7eff07ed511ae0264214",
+        "changes": [
+          "Fixed Super Mario Eclipse's Delfino Plaza going almost black once you have more than 120 Shines.",
+          "Borderless on Windows is now a plain window covering the screen instead of a fullscreen mode, so it shouldn't blank the monitor as Exclusive fullscreen can.",
+          "Fixed the Dune Buds in Gelato Beach being silent: their filling and deflating sounds play again.",
+          "Fixed the water in Bowser's hot tub being invisible in the final fight. Bowser now sits in it, and the duck and Bowser Jr.'s boat float on it.",
+          "Fixed Super Mario Eclipse crashing on Mac when you leave a stage, and Eclipse's Yoshi colours now show on Mac too.",
+          "Fixed the picture breaking up into coloured blocks from the save select onward on some older Intel graphics at Original (1×) picture sharpness.",
+          "The game can be played in French, German, Spanish or Italian with a language pack, made from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens.",
+          "Fixed accented letters such as á, ü and ñ in characters' speech bubbles in French, German, Spanish and Italian: a word like \"más\" no longer has its last letter dropped below the line.",
+          "Fixed the game crashing in Sirena Beach when the Phantamanta first splits into smaller mantas.",
+          "Fixed Super Mario Eclipse's ending movies losing their story when you skip them with A: skipping after the Bowser fight no longer leaves Delfino Plaza flooded with Shadow Mario back, and skipping the staff roll no longer loses its Shine.",
+          "Fixed Hotel Delfino's Boo blocks looking grey-blue and striped with HD textures on.",
+          "Fixed Luigi being unable to pick up nozzles from boxes in Super Mario Eclipse.",
+          "Fixed Super Mario Eclipse's music going missing after changing stages: secret courses' songs start with the course instead of after its intro, and stages such as Lacrima's hotel, Vaporware, Daisy Cruiser and Pizza Time play their music again.",
+          "Fixed Super Mario Eclipse crashing when you enter Red Lily's second episode.",
+          "Fixed Super Mario Eclipse crashing when you enter the Bowser fight that opens in Delfino Plaza after 239 Shines.",
+          "Fixed Super Mario Eclipse's Star Bits sometimes getting the wrong colour, and a memory error in its settings menu text that could crash the game.",
+          "A warp menu: open the debug overlay with the ` key, then press F8 or your controller's Back button to jump to any stage, episode or secret course, in the original game and in Super Mario Eclipse."
+        ]
+      }
+    },
     {
       "version": "0.1.57",
       "date": "2026-10-11",
