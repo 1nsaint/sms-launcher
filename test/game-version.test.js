@@ -166,7 +166,14 @@ test('download selects exact port and decomp commits even when the branch has ne
   const capture = async (command,args,cwd,environment) => execFileSync(command,args,{cwd,env:environment,encoding:'utf8',stdio:['ignore','pipe','pipe']}).trim();
   const run = async (command,args,options) => capture(command,args,options.cwd,options.env);
   const destination = path.join(root,'installed');
-  await game.checkout(destination, { source, env, run, capture });
+  // Windows rejects mkdir on an existing drive root, even with recursive=true.
+  const mkdirSync = fs.mkdirSync;
+  fs.mkdirSync = (directory, options) => {
+    if (directory === root) throw Object.assign(new Error('EPERM'), { code: 'EPERM' });
+    return mkdirSync(directory, options);
+  };
+  try { await game.checkout(destination, { source, env, run, capture }); }
+  finally { fs.mkdirSync = mkdirSync; }
   assert.equal(game.gitRevision(destination), source.commit);
   assert.equal(game.gitRevision(path.join(destination,'decomp')), source.decomp);
   assert.equal(git(destination, ['submodule', 'status']).trim().slice(0, 40), source.decomp);

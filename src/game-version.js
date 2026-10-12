@@ -77,7 +77,8 @@ function snapshotPath(base, settings, source = release) {
 }
 
 async function checkout(root, { git = 'git', run, capture, env, source = release, reference } = {}) {
-  fs.mkdirSync(path.dirname(root), { recursive: true });
+  const parent = path.dirname(root);
+  if (!fs.existsSync(parent)) fs.mkdirSync(parent, { recursive: true });
   const temporary = `${root}.download-${crypto.randomUUID()}`;
   let promoted = false;
   try {
