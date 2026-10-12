@@ -114,17 +114,68 @@ async function checkout(root, { git = 'git', run, capture, env, source = release
   } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
 }
 
+const USER_FOLDERS = ['textures', 'hd-cutscenes', 'eclipse'];
+
 function carryUserFiles(previous, next) {
   if (previous === next) return;
   const settings = path.join(previous, 'settings.txt');
   if (fs.existsSync(settings)) fs.copyFileSync(settings, path.join(next, 'settings.txt'));
-  for (const folder of ['textures', 'hd-cutscenes', 'eclipse']) {
+  for (const folder of USER_FOLDERS) {
     const origin = path.join(previous, 'mods', folder);
     const target = path.join(next, 'mods', folder);
     if (!fs.existsSync(origin) || fs.existsSync(target)) continue;
     // A Windows directory junction requires no administrator/developer mode.
     fs.symlinkSync(fs.realpathSync(origin), target, process.platform === 'win32' ? 'junction' : 'dir');
   }
+}
+
+function contains(parent, child) {
+  const relative = path.relative(parent, child);
+  return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith(`..${path.sep}`));
+}
+
+// Each update checks the new game out beside the last one in <base>.releases.
+// Remove the versions `keep` doesn't name, unless one holds a `protect` path
+// (a memory card or disc file). A kept version's HD packs may be linked from
+// an old one (carryUserFiles), so move those into the kept version first.
+async function pruneSnapshots(base, keep, protect = [], onError = () => {}) {
+  const releases = `${base}.releases`;
+  let names;
+  try { names = fs.readdirSync(releases); } catch (_) { return []; }
+  const kept = keep.filter(Boolean).map(root => path.resolve(root));
+  const guarded = [...kept, ...protect.filter(Boolean).map(item => path.resolve(item))];
+  const moved = new Map();
+  const removed = [];
+  for (const name of names) {
+    const candidate = path.join(releases, name);
+    try {
+      if (!fs.lstatSync(candidate).isDirectory()) continue;
+      const real = fs.realpathSync(candidate);
+      const within = item => contains(candidate, item) || contains(real, item);
+      if (guarded.some(item => within(item) || (fs.existsSync(item) && within(fs.realpathSync(item))))) continue;
+      for (const root of kept) for (const folder of USER_FOLDERS) {
+        const link = path.join(root, 'mods', folder);
+        if (!fs.lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) continue;
+        const target = path.resolve(path.dirname(link), fs.readlinkSync(link));
+        if (!within(target)) continue;
+        const type = process.platform === 'win32' ? 'junction' : 'dir';
+        fs.unlinkSync(link);
+        if (moved.has(target)) fs.symlinkSync(moved.get(target), link, type);
+        else if (fs.existsSync(target)) {
+          try { fs.renameSync(target, link); } catch (error) { fs.symlinkSync(target, link, type); throw error; }
+          moved.set(target, link);
+        }
+      }
+      // Unlink this version's own links so removing it can't reach through them.
+      for (const folder of USER_FOLDERS) {
+        const link = path.join(candidate, 'mods', folder);
+        if (fs.lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink()) fs.unlinkSync(link);
+      }
+      await fs.promises.rm(candidate, { recursive: true, force: true, maxRetries: 3 });
+      removed.push(candidate);
+    } catch (error) { onError(error, candidate); }
+  }
+  return removed;
 }
 
 async function buildSafely(root, settings, saveDir, compile, backups = saves.backupRoot(), source = release) {
@@ -172,4 +223,4 @@ function recoverBuild(root, settings) {
   return true;
 }
 
-module.exports = { release, gitRevision, matchesSource, identity, installed, compilerToolRoot, isCurrent, snapshotPath, checkout, carryUserFiles, buildSafely, recoverBuild };
+module.exports = { release, gitRevision, matchesSource, identity, installed, compilerToolRoot, isCurrent, snapshotPath, checkout, carryUserFiles, pruneSnapshots, buildSafely, recoverBuild };

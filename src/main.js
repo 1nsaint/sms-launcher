@@ -589,7 +589,17 @@ async function build(forceFresh = false) {
   try { saveConfig(); }
   catch (error) { config = earlier; throw error; }
   log(`Game ${source.version} is ready. Your saved games stay in the same folder.`);
+  await removeOldVersions();
   return result;
+}
+
+// Keep the current and previous game versions; older ones only take up space.
+async function removeOldVersions() {
+  if (!config.installRoot || !binaryReady()) return;
+  const removed = await game.pruneSnapshots(config.installRoot, [config.repo, config.previousInstall?.repo],
+    [currentSaveDirectory(), config.previousInstall?.saveDirectory, config.rom, config.previousInstall?.rom],
+    (error, folder) => log(`Could not remove old game version ${folder}: ${error.message}`));
+  if (removed.length) log(`Removed ${removed.length} old game version${removed.length === 1 ? '' : 's'} to free up disk space.`);
 }
 
 async function setupGame() {
@@ -1154,6 +1164,7 @@ if (ownsInstance) app.whenReady().then(async () => {
   createWindow();
   // Only with the window: a launcher update installs on quit, which `--play` does as the game closes.
   setupAppUpdater();
+  exclusive('Remove old game versions', removeOldVersions).catch(() => {});
   // The bundled manifest is the update check. Source downloads and builds
   // start with Update & play, so opening the launcher never changes a game.
 });
