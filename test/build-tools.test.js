@@ -108,6 +108,22 @@ test('fallback play can use a recorded older Windows toolset without downloading
   assert.equal(current.PATH.includes(path.join(dir, 'msys64', 'mingw32', 'bin')), false);
 });
 
+test('an explicit SMS_MSYS2_ROOT replaces the bundled Windows tools without downloading them', t => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-own-msys2-'));
+  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
+  const own = path.join(userData, 'Win7 MSYS2');
+  assert.deepEqual(tools.status(userData, 'win32', {}), { ready: false, mode: 'missing' });
+  assert.deepEqual(tools.status(userData, 'win32', { SMS_MSYS2_ROOT: own }), { ready: true, mode: 'own' });
+  assert.equal(tools.status(userData, 'linux', { SMS_MSYS2_ROOT: own }).mode, 'missing');
+  const env = tools.environment(userData, { PATH: 'system', SMS_ARCH: '64', SMS_MSYS2_ROOT: own }, 'win32');
+  assert.equal(env.MSYS2_ROOT, own);
+  assert.equal(env.MSYSTEM, 'MINGW64');
+  assert.ok(env.PATH.startsWith(`${path.join(own, 'mingw64', 'bin')};${path.join(own, 'usr', 'bin')};`));
+  // Play's recorded toolset still yields to the player's choice.
+  fs.mkdirSync(path.join(userData, 'recorded', 'msys64'), { recursive: true });
+  assert.equal(tools.environmentAtRoot(path.join(userData, 'recorded'), { SMS_MSYS2_ROOT: own }, 'win32').MSYS2_ROOT, own);
+});
+
 test('Windows build keeps the system Path that a copied environment spells Path', t => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-path-tools-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
