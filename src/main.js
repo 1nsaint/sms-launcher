@@ -227,12 +227,26 @@ async function exclusive(label, callback, newLog = false) {
 }
 
 // Add to Steam (steam.js). Steam reads non-Steam games only when it starts and
-// writes them back when it closes, so an open Steam closes first (steam://exit)
-// and opens again afterwards.
+// writes them back when it closes, so an open Steam closes first (steam://exit).
+// On Windows it opens again afterwards; on Linux the player opens it, since a
+// Steam started from the AppImage runs in its environment (a Steam Deck player
+// saw it open as Game Mode inside Desktop Mode).
 function steamRunning() {
   const [command, args] = process.platform === 'win32' ? ['tasklist', ['/FI', 'IMAGENAME eq steam.exe', '/NH']] : ['pgrep', ['-x', 'steam']];
   return new Promise(resolve => execFile(command, args, { windowsHide: true },
     (error, stdout) => resolve(process.platform === 'win32' ? /steam\.exe/i.test(stdout || '') : !error)));
+}
+
+// Closed once it has stayed closed for several checks in a row: a Steam that
+// starts again straight after exiting (as SteamOS can) would write its own copy
+// of the list over the launcher's when it next closes.
+async function waitForSteamToClose() {
+  const deadline = Date.now() + 60000;
+  for (let closed = 0; closed < 5;) {
+    if (Date.now() > deadline) throw new Error("Steam didn't close. Close Steam yourself, then choose Add to Steam again.");
+    closed = (await steamRunning()) ? 0 : closed + 1;
+    await new Promise(resolve => setTimeout(resolve, 1000));
+  }
 }
 
 function windowsSteamPath() {
@@ -285,29 +299,27 @@ async function addToSteam({ play = false } = {}) {
   log('Downloading Steam artwork from SteamGridDB…');
   const artwork = await steam.downloadArtwork(downloadImage);
   const wasRunning = await steamRunning();
+  const reopen = wasRunning && process.platform === 'win32';
   if (wasRunning) {
     const answer = await dialog.showMessageBox(window, {
       type: 'question', buttons: ['Cancel', 'Close Steam and add'], defaultId: 1, cancelId: 0,
       message: 'Close Steam to add the launcher?',
-      detail: 'Steam picks up new non-Steam games only when it starts, so it closes for a moment and opens again afterwards.'
+      detail: `Steam picks up new non-Steam games only when it starts, so it closes for a moment${reopen ? ' and opens again afterwards' : '. Open it again once the launcher says it was added'}.`
     });
     if (answer.response !== 1) return { cancelled: true };
     log('Closing Steam…');
     await shell.openExternal('steam://exit');
-    const deadline = Date.now() + 60000;
-    while (await steamRunning()) {
-      if (Date.now() > deadline) throw new Error("Steam didn't close. Close Steam yourself, then choose Add to Steam again.");
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
-    await new Promise(resolve => setTimeout(resolve, 1500)); // Steam's last writes
+    await waitForSteamToClose();
   }
   const results = steam.addShortcut({ root, accounts, exe, startDir: path.dirname(exe), artwork,
     launchOptions: process.platform === 'linux' ? '--no-sandbox' : '', play: Boolean(play) });
   const added = results.some(result => result.added);
   const images = Math.min(...results.map(result => result.artwork));
   log(`${added ? 'Added' : 'Updated'} ${steam.APP_NAME} in Steam${play ? ' with Skip Launcher' : ''} (${images} of ${steam.ARTWORK.length} artwork images, ${root}).`);
-  if (wasRunning) shell.openExternal('steam://open/games').catch(() => {});
-  return { added, play: Boolean(play), name: steam.APP_NAME, artwork: images, total: steam.ARTWORK.length, reopened: wasRunning };
+  for (const result of results)
+    log(`Steam account ${result.account}: kept its ${result.kept} other non-Steam games${result.backup ? `; the list from before is saved as ${result.backup}` : ''}.`);
+  if (reopen) shell.openExternal('steam://open/games').catch(() => {});
+  return { added, play: Boolean(play), name: steam.APP_NAME, artwork: images, total: steam.ARTWORK.length, reopened: reopen };
 }
 
 function requireRepo() {

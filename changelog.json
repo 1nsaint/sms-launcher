@@ -6,7 +6,8 @@
       "Play in French, German, Spanish or Italian: choose Language under Settings → Gameplay, and the launcher downloads that language's pack before the game starts.",
       "Fixed the Spanish language pack failing to install on Windows PCs set to some non-English system languages, such as Russian, with \"UnicodeEncodeError: 'charmap' codec can't encode character\".",
       "Fixed the game build and HD texture setup crashing on some Windows PCs (\"Access violation\", or exit code 2816) when another Python install's settings were set on the PC.",
-      "Fixed every game update leaving the previous versions' files behind, which used several GB of disk space each. The launcher now keeps only the current and previous versions, and frees up the space from older ones the next time it opens."
+      "Fixed every game update leaving the previous versions' files behind, which used several GB of disk space each. The launcher now keeps only the current and previous versions, and frees up the space from older ones the next time it opens.",
+      "Add to Steam is safer: it checks that all your other non-Steam games are still in Steam's list before saving it, never replaces its first backup of that list, and on Linux and the Steam Deck no longer restarts Steam itself, which could open Game Mode inside Desktop Mode."
     ],
     "game": [
       "Fixed Super Mario Eclipse's Delfino Plaza going almost black once you have more than 120 Shines.",

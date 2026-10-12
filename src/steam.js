@@ -226,6 +226,33 @@ function writeAtomically(file, data, files) {
   files.renameSync(temporary, file);
 }
 
+// Each shortcut in a shortcuts.vdf list as bytes, to compare before and after.
+const shortcutBytes = list => list.map(entry => serializeVdf([entry]).toString('hex'));
+
+// shortcuts.vdf as it will be written, checked first: it must read back, and
+// every other non-Steam game must still be in it exactly as it was, so a
+// mistake here can never cost the player their library.
+function checkedVdf(parsed, others, count) {
+  const data = serializeVdf(parsed);
+  let list = [];
+  try { list = field(parseVdf(data), 'shortcuts')?.[2] || []; } catch { /* counted as missing below */ }
+  const written = new Set(shortcutBytes(list));
+  if (list.length !== count || !others.every(bytes => written.has(bytes)))
+    throw new Error("Add to Steam stopped before changing Steam's list of non-Steam games, because the new list would not have kept all of them. Nothing was changed.");
+  return data;
+}
+
+// The copy of shortcuts.vdf made before a change. The first is
+// shortcuts.vdf.sms-launcher-backup and is never replaced; later ones are named
+// after the time, so choosing Add to Steam again keeps the copy from before.
+function backUp(vdf, data, files, now = new Date()) {
+  const first = `${vdf}.sms-launcher-backup`;
+  try { files.writeFileSync(first, data, { flag: 'wx' }); return first; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  const dated = `${first}-${now.toISOString().replace(/[:.]/g, '-')}`;
+  files.writeFileSync(dated, data);
+  return dated;
+}
+
 // Adds the launcher to each account's shortcuts.vdf (backing up the old file
 // first) and saves its artwork. Steam must be closed.
 function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launchOptions = '', play, artwork = [], platform = process.platform, files = fs }) {
@@ -236,22 +263,23 @@ function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launch
     let data = null;
     try { data = files.readFileSync(vdf); } catch (error) { if (error.code !== 'ENOENT') throw error; }
     const parsed = data ? parseVdf(data) : [[MAP, 'shortcuts', []]];
+    const before = field(parsed, 'shortcuts')?.[2] || [];
+    const count = before.length, bytes = shortcutBytes(before);
     const shortcut = upsertShortcut(parsed, { exe, startDir, appName, launchOptions, play, platform });
-    const saved = [];
-    for (const piece of artwork) {
-      if (!piece.data) continue;
-      const file = path.join(config, 'grid', `${shortcut.appId}${piece.suffix}`);
-      writeAtomically(file, piece.data, files);
-      saved.push(piece.suffix);
-      if (piece.suffix === '_icon.png') setField(shortcut.fields, STRING, 'icon', file);
-    }
-    if (data) files.writeFileSync(`${vdf}.sms-launcher-backup`, data);
-    writeAtomically(vdf, serializeVdf(parsed), files);
-    return { account, appId: shortcut.appId, added: shortcut.added, artwork: saved.length };
+    const others = bytes.filter((_, index) => before[index][2] !== shortcut.fields);
+    const pieces = artwork.filter(piece => piece.data);
+    const image = piece => path.join(config, 'grid', `${shortcut.appId}${piece.suffix}`);
+    const icon = pieces.find(piece => piece.suffix === '_icon.png');
+    if (icon) setField(shortcut.fields, STRING, 'icon', image(icon));
+    const output = checkedVdf(parsed, others, count + (shortcut.added ? 1 : 0));
+    for (const piece of pieces) writeAtomically(image(piece), piece.data, files);
+    const backup = data ? backUp(vdf, data, files) : null;
+    writeAtomically(vdf, output, files);
+    return { account, appId: shortcut.appId, added: shortcut.added, artwork: pieces.length, kept: others.length, backup };
   });
 }
 
 module.exports = {
   APP_NAME, ARTWORK, MAP, STRING, INT32, parseVdf, serializeVdf, shortcutAppId, upsertShortcut,
-  steamRoots, registrySteamPath, findSteam, steamAccounts, downloadArtwork, hasShortcut, addShortcut
+  steamRoots, registrySteamPath, findSteam, steamAccounts, downloadArtwork, hasShortcut, checkedVdf, addShortcut
 };
