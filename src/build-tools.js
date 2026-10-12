@@ -161,6 +161,7 @@ function environmentAtRoot(root, base = process.env, platform = process.platform
     return result;
   }
   const msys = path.join(root, 'msys64');
+  base = withoutHostPython(base);
   if (base.SMS_ARCH === '32' && fs.existsSync(path.join(msys, 'opt', 'bin', 'i686-w64-mingw32-g++.exe'))) {
     return { ...prependWindowsPath(base, [path.join(msys, 'opt', 'i686-w64-mingw32', 'bin'), path.join(msys, 'mingw32', 'bin'),
       path.join(msys, 'mingw64', 'bin'), path.join(msys, 'usr', 'bin')]),
@@ -172,6 +173,16 @@ function environmentAtRoot(root, base = process.env, platform = process.platform
   const target = base.SMS_ARCH === '32' ? 'mingw32' : 'mingw64';
   return { ...prependWindowsPath(base, [path.join(msys, target, 'bin'), path.join(msys, 'usr', 'bin')]),
     MSYS2_ROOT: msys, MSYSTEM: target === 'mingw32' ? 'MINGW32' : 'MINGW64', CHERE_INVOKING: '1' };
+}
+
+// Another Python's PYTHONPATH or PYTHONHOME makes the bundled Python load that
+// install's extension modules, which crashes it with an access violation.
+// Windows variable names ignore case, so match them that way.
+const HOST_PYTHON = new Set(['PYTHONHOME', 'PYTHONPATH', 'PYTHONSTARTUP', 'PYTHONUSERBASE', 'PYTHONNOUSERSITE']);
+
+function withoutHostPython(base) {
+  const result = Object.fromEntries(Object.entries(base).filter(([key]) => !HOST_PYTHON.has(key.toUpperCase())));
+  return { ...result, PYTHONNOUSERSITE: '1' };
 }
 
 function fetchVerified(url, destination, expected, onProgress = () => {}, redirects = 0) {
