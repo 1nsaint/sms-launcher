@@ -334,8 +334,10 @@ async function launch(command, args, options = {}, label = 'Task', isGame = fals
     // so the game would run with an invisible window. Detached instead, the game
     // (a console program) gets no console window and shows its own normally.
     const windowsGame = isGame && process.platform === 'win32';
+    // Python writes UTF-8, as this log reads it: on Windows it otherwise uses
+    // the system code page, and cp1251 can't print the "ñ" in "Español".
     const child = spawn(command, args, { ...options, detached: process.platform !== 'win32' || windowsGame,
-      env: { ...(options.env || process.env), PYTHONUNBUFFERED: '1' },
+      env: { ...(options.env || process.env), PYTHONUNBUFFERED: '1', PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' },
       windowsHide: !windowsGame, stdio: ['ignore', 'pipe', 'pipe'] });
     active = { label, child, detail: label.includes('build tools') ? 'Downloading and preparing tools…' : 'Starting…',
       percent: null, startedAt: Date.now() };
