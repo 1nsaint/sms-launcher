@@ -512,7 +512,7 @@ function refresh(data) {
   $('available-game-version-row').hidden = installedVersion === data.game.availableVersion;
   $('available-game-version').textContent = data.game.availableVersion;
   $('tool-version').textContent = data.game.toolVersion;
-  $('tool-version-note').textContent = [data.tools.ready || data.tools.privateInstalled ? 'Downloaded' : 'Not downloaded',
+  $('tool-version-note').textContent = [data.tools.mode === 'own' ? 'Your MSYS2' : data.tools.ready || data.tools.privateInstalled ? 'Downloaded' : 'Not downloaded',
     data.game.installedToolVersion && data.game.installedToolVersion !== data.game.toolVersion
       ? `Game built with ${data.game.installedToolVersion}` : ''].filter(Boolean).join(' · ');
   $('game-update-note').textContent = !data.binaryReady

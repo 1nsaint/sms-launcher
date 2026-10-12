@@ -257,6 +257,8 @@ The launcher checks available tools and downloads prepared archives when needed.
 | Windows x64 | A prepared MSYS2 tree with 64-bit helper programs and compilers for both 32-bit and 64-bit games |
 | Mac Intel / Apple Silicon | Native LLVM, CMake, Python, Git, Make, patch, and 7-Zip; Apple's Command Line Tools and Rosetta are installed separately when required |
 
+**Your own MSYS2 (Windows, advanced).** Set the environment variable `SMS_MSYS2_ROOT` to an MSYS2 folder (the one containing `usr` and `mingw64`) and restart the launcher. It then uses that MSYS2 for every build and never downloads its own Windows tools. This is for setups the prepared tools cannot run on, such as Windows 7 with the last MSYS2 that supports it. Install the packages from MinGW64: `pacman -S --needed mingw-w64-x86_64-gcc mingw-w64-x86_64-cmake mingw-w64-x86_64-SDL2 mingw-w64-x86_64-ninja mingw-w64-x86_64-make mingw-w64-x86_64-python patch git`. Git is found in that MSYS2's `usr\bin` first, then on your normal PATH; on Windows 7, delete that MSYS2's `usr\bin\git.exe` and install Git for Windows 2.38.1 instead. Only 64-bit games are supported this way; Super Mario Eclipse needs clang, and HD textures need `7z` on the PATH. Unset the variable to go back to the prepared tools.
+
 Tool archives are separate release assets, with source archives and package notices. Matching versions are reused. Changed archives install into separate folders, preserving tools needed by earlier game builds. Each game build records its tool location.
 
 See [build tool publishing](docs/build-tools.md) for archive preparation and publishing.

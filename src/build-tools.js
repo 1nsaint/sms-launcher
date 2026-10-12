@@ -110,6 +110,9 @@ function status(userData, platform = process.platform, env = process.env, option
       mode: appleReady && installed && found.ready ? 'private' : 'missing',
       privateInstalled: installed, appleReady };
   }
+  // Explicit opt-in for a player's own MSYS2 (e.g. the last Windows 7 one):
+  // never download the bundled tools, and let the build report what's missing.
+  if (platform === 'win32' && env.SMS_MSYS2_ROOT) return { ready: true, mode: 'own' };
   if (privateReady(userData, platform)) return { ready: true, mode: 'private' };
   return { ready: false, mode: 'missing' };
 }
@@ -132,7 +135,8 @@ function environmentAtRoot(root, base = process.env, platform = process.platform
     if (macInspection?.sdkPath) result.SDKROOT = macInspection.sdkPath;
     return result;
   }
-  if (!root || !fs.existsSync(path.join(root, platform === 'win32' ? 'msys64' : 'env'))) return { ...base };
+  const own = platform === 'win32' ? base.SMS_MSYS2_ROOT : null;
+  if (!own && (!root || !fs.existsSync(path.join(root, platform === 'win32' ? 'msys64' : 'env')))) return { ...base };
   if (platform === 'linux') {
     const prefix = path.join(root, 'env');
     const bin = path.join(prefix, 'bin');
@@ -160,7 +164,7 @@ function environmentAtRoot(root, base = process.env, platform = process.platform
     }
     return result;
   }
-  const msys = path.join(root, 'msys64');
+  const msys = own || path.join(root, 'msys64');
   base = withoutHostPython(base);
   if (base.SMS_ARCH === '32' && fs.existsSync(path.join(msys, 'opt', 'bin', 'i686-w64-mingw32-g++.exe'))) {
     return { ...prependWindowsPath(base, [path.join(msys, 'opt', 'i686-w64-mingw32', 'bin'), path.join(msys, 'mingw32', 'bin'),
