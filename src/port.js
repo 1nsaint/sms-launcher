@@ -283,6 +283,8 @@ function buildEnvironment(settings, disc, root) {
     SMS_ARCH: settings.arch,
     SMS_ECLIPSE: settings.eclipse ? '1' : '0',
     SMS_DISC_IMAGE: disc,
+    // The launcher runs sms with the disc, so skip build.sh's 1.1 GiB sms-standalone copy.
+    SMS_STANDALONE: '0',
     SMS_WIDESCREEN: settings.widescreen,
     SMS_WIDESCREEN_HUD: settings.hudEdges ? 'edges' : 'centre',
     SMS_FRAME_RATE: String(normalizeSettings(settings).frameRate),
