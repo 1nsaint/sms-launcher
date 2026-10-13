@@ -3,7 +3,8 @@
   "beta": {
     "launcher": [
       "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
-      "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher."
+      "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher.",
+      "Fixed updates failing to link your HD textures, HD cutscenes or Eclipse files into the new game version when an older update had left a broken link to a removed version (\"EISDIR\" on Windows)."
     ],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
