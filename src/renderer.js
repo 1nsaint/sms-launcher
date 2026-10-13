@@ -15,35 +15,29 @@ function closeModal() {
     if (dialog.open) dialog.close();
 }
 
-function showSettingsView(name) {
-  $('settings-view').hidden = name !== 'settings';
-  $('maintenance-view').hidden = name !== 'maintenance';
-  $('controls-view').hidden = name !== 'controls';
-  $('page-settings').setAttribute('aria-label', { settings: 'Game settings', maintenance: 'Manage game', controls: 'Controls' }[name]);
+// Settings is one dialog with a tab per section; it reopens on the last one shown.
+const settingsTabs = ['gameplay', 'display', 'graphics', 'controls', 'manage', 'saves', 'launcher'];
+let settingsTab = 'gameplay';
+function showSettingsTab(name) {
+  if (settingsTab === 'controls' && name !== 'controls') stopCapture();
+  settingsTab = name;
+  for (const tab of settingsTabs) {
+    $(`pane-${tab}`).hidden = tab !== name;
+    $(`tab-${tab}`).setAttribute('aria-selected', String(tab === name));
+    $(`tab-${tab}`).classList.toggle('active', tab === name);
+  }
+  $('settings-panes').scrollTop = 0;
+  if (name === 'controls') renderBindings();
+  if (name === 'launcher') loadUpdateChannels();
 }
+for (const tab of settingsTabs) $(`tab-${tab}`).addEventListener('click', () => showSettingsTab(tab));
+$('page-settings').addEventListener('close', () => stopCapture());
 
 $('settings-cog').addEventListener('click', () => {
-  showSettingsView('settings');
+  showSettingsTab(settingsTab);
   $('page-settings').showModal();
+  $(`tab-${settingsTab}`).focus();
   loadDisplayInfo();
-});
-$('open-maintenance').addEventListener('click', () => {
-  showSettingsView('maintenance');
-  $('back-to-settings').focus();
-});
-$('back-to-settings').addEventListener('click', () => {
-  showSettingsView('settings');
-  $('open-maintenance').focus();
-});
-$('open-controls').addEventListener('click', () => {
-  showSettingsView('controls');
-  renderBindings();
-  $('controls-back').focus();
-});
-$('controls-back').addEventListener('click', () => {
-  stopCapture();
-  showSettingsView('settings');
-  $('open-controls').focus();
 });
 
 // --- Controls: key and controller bindings (src/bindings.js). keyBindings and padBindings hold only the
@@ -173,7 +167,7 @@ function renderPrompts() {
 }
 
 function renderBindings() {
-  if (!globalThis.SmsBindings || $('controls-view').hidden) return;
+  if (!globalThis.SmsBindings || $('pane-controls').hidden) return;
   const controller = bindingMode === 'controller';
   for (const button of document.querySelectorAll('[data-binding-mode]'))
     button.setAttribute('aria-pressed', String(button.dataset.bindingMode === bindingMode));
@@ -1060,7 +1054,6 @@ for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'l
 $('volume').addEventListener('input', renderVolume);
 for (const key of ['cameraSpeed', 'mouseSensitivity', 'sharpen', 'brightness']) $(key).addEventListener('input', renderRanges);
 for (const key of ['fullscreen', 'fullscreenMode', 'mouseCamera', 'presentFilter', 'textures', 'textureLoading']) $(key).addEventListener('input', () => renderDependents());
-$('open-maintenance').addEventListener('click', loadUpdateChannels);
 window.sms.onLog(appendLog);
 window.sms.onLogReset(resetLog);
 window.sms.onActivity(value => {
@@ -1120,27 +1113,23 @@ window.sms.onWindowState(renderWindowState);
 
 // --- Controller navigation (src/gamepad-nav.js).
 const openDialog = () => [...document.querySelectorAll('.launcher-modal[open]')].pop();
-const settingsViews = ['settings', 'controls', 'maintenance'];
-const settingsView = () => settingsViews.find(name => !$(`${name}-view`).hidden);
-// LB / RB step through Settings, Controls and Manage game with their own buttons.
-function stepSettingsView(step) {
+// LB / RB step through the Settings tabs.
+function stepSettingsTab(step) {
   if (!$('page-settings').open) return;
-  const target = settingsViews[settingsViews.indexOf(settingsView()) + step];
+  const target = settingsTabs[settingsTabs.indexOf(settingsTab) + step];
   if (!target) return;
-  if (settingsView() === 'controls') $('controls-back').click();
-  if (settingsView() === 'maintenance') $('back-to-settings').click();
-  if (target !== 'settings') $(target === 'controls' ? 'open-controls' : 'open-maintenance').click();
+  showSettingsTab(target);
+  $(`tab-${target}`).focus();
 }
 function gamepadBack() {
   const dialog = openDialog();
-  if (dialog?.id === 'page-settings' && settingsView() !== 'settings') stepSettingsView(-settingsViews.indexOf(settingsView()));
-  else if (dialog) dialog.close();
+  if (dialog) dialog.close();
   else if (consoleOpen) setConsoleOpen(false);
   else [...document.querySelectorAll('[data-setup-back]')].find(button => !button.disabled && button.offsetParent)?.click();
 }
 window.smsGamepadNav.start({
   document, window,
-  regions: '.switch, .quick-control, .field',
+  regions: '.switch, .field',
   defaultFocus: () => [$('play'), $('settings-cog')],
   // The game reads the same controller, and Controls waits for a button to bind.
   paused: () => current?.active?.label === 'Play Super Mario Sunshine' || Boolean(capture),
@@ -1148,8 +1137,8 @@ window.smsGamepadNav.start({
     back: gamepadBack,
     menu: () => openDialog() ? closeModal() : $('settings-cog').click(),
     view: () => consoleOpen ? setConsoleOpen(false) : showActivityLog(),
-    previous: () => stepSettingsView(-1),
-    next: () => stepSettingsView(1)
+    previous: () => stepSettingsTab(-1),
+    next: () => stepSettingsTab(1)
   }
 });
 window.sms.windowState().then(renderWindowState).catch(showError);

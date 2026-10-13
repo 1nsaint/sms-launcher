@@ -70,41 +70,41 @@ Open Settings to change screen format, smoothness, picture sharpness, and HD tex
 
 On Windows, macOS, and Linux, the defaults are **64-bit**, **HD textures on**, **Sharpest (4×)** picture sharpness, **icons at the screen edges**, and **60 fps** gameplay. Existing users keep their saved settings.
 
-Settings → Gameplay → Frame rate offers **30 fps (GameCube native)**, **60 fps (default)**, and **120 fps (optional)**.
+Settings → Display → Frame rate offers **30 fps (GameCube native)**, **60 fps (default)**, and **120 fps (optional)**.
 The previous 60 fps switch migrates to 30 or 60 without changing your saved preference.
 120 fps stays available on every display; it needs more CPU/GPU performance, and a display running at 120 Hz or faster shows its full benefit.
 Logos, menus, and movies stay at 30 fps.
 
-Turn on **Settings → Visuals → Full screen** to have the game fill your display on its next launch. **Full screen type** chooses Borderless (the default) or Exclusive, which switches your display to the **Exclusive resolution** while the game runs (for example 1920×1080 on a 4K screen). **Monitor** opens the game on the same monitor as the launcher or on the primary one. F11 or Alt+Enter switches full screen while playing.
+Turn on **Settings → Display → Full screen** to have the game fill your display on its next launch. **Full screen type** chooses Borderless (the default) or Exclusive, which switches your display to the **Exclusive resolution** while the game runs (for example 1920×1080 on a 4K screen). **Monitor** opens the game on the same monitor as the launcher or on the primary one. F11 or Alt+Enter switches full screen while playing.
 
-The launcher also works with a game controller. Move with the left stick or d-pad and press **A** to select. On a list, **A** steps to the next choice and **X** steps back; on a slider, left and right change the value. Press **B** to go back and **Start** to open or close Settings. **LB**/**RB** move between Settings, Controls and Manage game, **View**/**Select** shows or hides the activity log, and the right stick scrolls. The launcher ignores the controller while the game is running and while **Controls** waits for a button to bind. Choosing a file or folder still opens your system's file picker, which needs a mouse or keyboard.
+The launcher also works with a game controller. Move with the left stick or d-pad and press **A** to select. On a list, **A** steps to the next choice and **X** steps back; on a slider, left and right change the value. Press **B** to go back and **Start** to open or close Settings. **LB**/**RB** move between the Settings tabs, **View**/**Select** shows or hides the activity log, and the right stick scrolls. The launcher ignores the controller while the game is running and while **Controls** waits for a button to bind. Choosing a file or folder still opens your system's file picker, which needs a mouse or keyboard.
 
-**Settings → Performance** also has **Vsync** (Off, On or Adaptive), **Skip cutscenes**, and **Performance overlay**, which opens the game's frame-rate overlay at start (the backtick key toggles it in game).
+**Settings → Display** also has **Picture fit** (keep its shape, stretch, or whole multiples of the original size), **Brightness**, **Vsync** (Off, On or Adaptive) and **Performance overlay**, which opens the game's frame-rate overlay at start (the backtick key toggles it in game).
 
 **Graphics preset** sets them all at once, the way PC games do: **Low**, **Medium**, **High** or **Ultra** set Picture sharpness, anti-aliasing, FXAA, texture filtering, sharpening, scaling and the heat-wave effect, and **Steam Deck** suits the Deck's 1280×800 screen (2×, 16:10, full screen). Changing any of those yourself switches it to **Custom**. If the frame rate still drops, try a lower screen resolution: set **Full screen type** to Exclusive and choose a lower **Exclusive resolution**.
 
-**Settings → HDR** (Windows) turns on **HDR** output for an HDR display (turn on Windows HDR first). **Use Windows HDR calibration** takes peak brightness from your [Windows HDR Calibration](https://apps.microsoft.com/detail/9n7f2sm5d1lr) profile and paper white from Windows' SDR content brightness, and the panel shows what Windows reports for your display; turn it off to set **Paper white** and **Peak brightness** yourself. **Contrast**, **Saturation** and **Highlights** (how far the brightest parts climb toward the peak) shape the picture.
+**Settings → Display → HDR** (Windows) turns on **HDR** output for an HDR display (turn on Windows HDR first). **Use Windows HDR calibration** takes peak brightness from your [Windows HDR Calibration](https://apps.microsoft.com/detail/9n7f2sm5d1lr) profile and paper white from Windows' SDR content brightness, and the panel shows what Windows reports for your display; turn it off to set **Paper white** and **Peak brightness** yourself. **Contrast**, **Saturation** and **Highlights** (how far the brightest parts climb toward the peak) shape the picture.
 
-**Settings → Picture** has **Anti-aliasing** (MSAA 2×, 4× or 8×), **FXAA**, **Texture filtering** (anisotropic, 2× to 16×), **Sharpening**, **Brightness**, **Picture fit** (keep its shape, stretch, or whole multiples of the original size), **Scaling** (smooth, sharp pixels, nearest, **FSR 1**, AMD's upscaler, or **NIS**, NVIDIA Image Scaling: their **Upscaling quality**, Native, Quality, Balanced, Performance or Ultra Performance, renders at 100%, 67%, 59%, 50% or 33% of your screen's resolution and upscales the rest with clean edges, in place of Picture sharpness; both work on any graphics card) and **Heat-wave effect**, which turns off the wavy shimmer in hot, sunny areas. All of them are off or unchanged by default (the heat-wave effect stays on).
+**Settings → Graphics** has **Anti-aliasing** (MSAA 2×, 4× or 8×), **FXAA**, **Texture filtering** (anisotropic, 2× to 16×), **Sharpening**, **Scaling** (smooth, sharp pixels, nearest, **FSR 1**, AMD's upscaler, or **NIS**, NVIDIA Image Scaling: their **Upscaling quality**, Native, Quality, Balanced, Performance or Ultra Performance, renders at 100%, 67%, 59%, 50% or 33% of your screen's resolution and upscales the rest with clean edges, in place of Picture sharpness; both work on any graphics card) and **Heat-wave effect**, which turns off the wavy shimmer in hot, sunny areas. All of them are off or unchanged by default (the heat-wave effect stays on).
 
 **Settings → Gameplay → Invert camera X / Y** flip the C-stick camera left/right and up/down. Both are inverted by default. **Free camera** keeps the camera where you point it instead of swinging back behind Mario (L recentres it). **Camera speed** scales how fast it turns. **Mouse look** turns it with the mouse (F10 releases the mouse, a click takes it back) at the chosen **Mouse sensitivity**.
 
-**Settings → Sound → Volume** sets the game's master volume, from 0 to 100% (full by default). It takes effect on the next launch.
+**Settings → Gameplay → Volume** sets the game's master volume, from 0 to 100% (full by default). It takes effect on the next launch. **Skip cutscenes** there skips every movie, including the intro.
 
-- **Game files** lets you change the setup folder or choose a different disc file.
-- **Manage game** has updates, rebuilding, save backups, and space cleanup.
-- **Controls** sets the keyboard keys and controller buttons for each GameCube button. Switch between **Keyboard** and **Controller** at the top; **Change** uses one key or button (press it), **Add** adds another, **Reset** goes back to the default. Controllers work without any setup. **Soft L press** and **Soft R press** have no keys by default: bind them for a light trigger press without the click (for example, spraying FLUDD on the move), and set how far with **Soft press depth**. **Button prompts** picks the buttons the game shows in its text and on the FLUDD gauge: **Original (GameCube)** (the default), **Xbox**, **PlayStation 5**, **Steam Deck**, **PC keyboard and mouse**, or **Automatic**, which switches between keyboard and controller as you play; with Automatic, **Controller prompts** can show one style on any controller (PlayStation prompts on an Xbox pad, say). The prompts follow your bindings, so a remapped key or button shows as you set it, and a preview shows them. On SteamOS or a Steam Deck, if buttons do two things or your controller buttons don't apply, turn off Steam Input for SMS Launcher (Steam → Properties → Controller → Disable Steam Input); the Controls page explains this on Linux.
-- **Versions** shows your launcher, game, and setup tool versions for support.
+- **Manage game** has game updates, rebuilding, the setup folder and disc file, the game build, and space cleanup.
+- **Saves** backs up and restores your saved games and imports Dolphin saves.
+- **Controls** sets the keyboard keys and controller buttons for each GameCube button. Switch between **Keyboard** and **Controller** at the top; **Change** uses one key or button (press it), **Add** adds another, **Reset** goes back to the default. Controllers work without any setup. **Soft L press** and **Soft R press** have no keys by default: bind them for a light trigger press without the click (for example, spraying FLUDD on the move), and set how far with **Soft press depth**. **Button prompts** picks the buttons the game shows in its text and on the FLUDD gauge: **Original (GameCube)** (the default), **Xbox**, **PlayStation 5**, **Steam Deck**, **PC keyboard and mouse**, or **Automatic**, which switches between keyboard and controller as you play; with Automatic, **Controller prompts** can show one style on any controller (PlayStation prompts on an Xbox pad, say). The prompts follow your bindings, so a remapped key or button shows as you set it, and a preview shows them. On SteamOS or a Steam Deck, if buttons do two things or your controller buttons don't apply, turn off Steam Input for SMS Launcher (Steam → Properties → Controller → Disable Steam Input); the Controls tab explains this on Linux.
+- **Launcher** has launcher updates, Discord and usage sharing, and shows your launcher, game, and setup tool versions for support.
 
 Windows and Linux offer both 64-bit and 32-bit game builds. Keep the default **64-bit** choice unless you need 32-bit. Mac game builds are 64-bit.
 
 ### HD textures
 
-HD textures are **on by default for first-time setup**. In Sunshine mode, this also installs all 21 enhanced cutscenes at 3× resolution, preserving their timing and original audio. Textures use about **1 GB to download** and **3 GB installed**; the movie patches add about **5.7 GB to download** and **5.8 GB installed**. Movie setup needs about **7.8 GB free**, plus room for textures if needed. You can turn HD visuals off in **Settings → Visuals**. Existing users keep their saved choice.
+HD textures are **on by default for first-time setup**. In Sunshine mode, this also installs all 21 enhanced cutscenes at 3× resolution, preserving their timing and original audio. Textures use about **1 GB to download** and **3 GB installed**; the movie patches add about **5.7 GB to download** and **5.8 GB installed**. Movie setup needs about **7.8 GB free**, plus room for textures if needed. You can turn HD visuals off in **Settings → Graphics**. Existing users keep their saved choice.
 
 If HD setup is incomplete, choose **Finish HD setup** to download and prepare the missing files. Previously installed textures and movies are reused. The launcher shows download progress and checks all movies before activating the pack. Failed or cancelled setup keeps the previous pack. Your original disc and saves stay intact. Eclipse keeps its own movies.
 
-**Settings → Visuals → HD texture loading** chooses when HD textures load:
+**Settings → Graphics → HD texture loading** chooses when HD textures load:
 
 - **Before each level** (default): a level's textures load while it loads, so they don't appear late while you play.
 - **Whole pack**: the rest of the HD textures load during the first few loading screens and all of them stay loaded, so after that none load at all. This needs a graphics card with at least 6 GB of memory.
@@ -129,7 +129,7 @@ If optional HD downloads are unfinished, **Play installed version** also lets yo
 
 Launcher updates download automatically when **Update automatically** is enabled and install when you quit. If automatic updates aren't available for your installation, download and install the latest launcher from the [releases page](https://github.com/chasem-dev/sms-launcher/releases/latest).
 
-To manage updates yourself, turn off **Update automatically** in **Settings → Manage game**. Use **Update game** there when you're ready.
+To manage updates yourself, turn off **Update automatically** in **Settings → Launcher**. Use **Update game** in **Settings → Manage game** when you're ready.
 
 After the launcher updates, its changelog opens once to show what changed in the launcher and the game since you last opened it. Open it any time with the changelog button beside the Settings cog.
 
@@ -143,7 +143,7 @@ The [Add to Steam](#add-to-steam) banner sets this up for you when you turn on *
 
 The launcher keeps your save location when you update or rebuild the game. It makes dated backups before and after playing, and before game updates or cleanup.
 
-In **Settings → Manage game → Saved games**, you can:
+In **Settings → Saves**, you can:
 
 - **Import a Dolphin save:** drop a `.gci` file into the Saved games panel, or choose **Choose .gci file**. Confirm the import, then start the game.
 - **Back up saves** whenever you want an extra copy.
@@ -186,9 +186,9 @@ The top bar shows how many players have the launcher open. To count you, the lau
 - whether the game is running
 - a random install ID made on first run
 
-Nothing else is sent: no name, account, disc file, saves, settings or file paths, and no IP address is stored. Installs that stop checking in are deleted after 90 days. Turn off **Share anonymous usage** in **Settings → Manage game** to stop sending check-ins; you will still see the online count, but you won't be counted in it.
+Nothing else is sent: no name, account, disc file, saves, settings or file paths, and no IP address is stored. Installs that stop checking in are deleted after 90 days. Turn off **Share anonymous usage** in **Settings → Launcher** to stop sending check-ins; you will still see the online count, but you won't be counted in it.
 
-While the game runs and the Discord app is open on the same computer, your Discord profile shows that you are playing: the level and episode, your Shine and Blue Coin counts, lives, whether you're paused, and how long you have played. This goes only to the Discord app on your computer, and it clears when the game closes. Turn off **Show on Discord** in **Settings → Manage game** to hide it.
+While the game runs and the Discord app is open on the same computer, your Discord profile shows that you are playing: the level and episode, your Shine and Blue Coin counts, lives, whether you're paused, and how long you have played. This goes only to the Discord app on your computer, and it clears when the game closes. Turn off **Show on Discord** in **Settings → Launcher** to hide it.
 
 ## Need help?
 

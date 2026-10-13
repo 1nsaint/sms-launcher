@@ -301,25 +301,32 @@ test('Beta builds see new Beta notes first, and only Beta notes when no release 
   assert.equal(seen.elements.get('changelog-title').textContent, 'Changelog');
 });
 
-test('controller buttons open settings, step through its views, go back and pause while the game runs', async () => {
+test('controller buttons open settings, step through its tabs, go back and pause while the game runs', async () => {
   const view = await renderer(state());
   const { elements, gamepad } = view;
-  const shown = () => ['settings', 'controls', 'maintenance'].filter(name => !elements.get(`${name}-view`).hidden);
+  const tabs = ['gameplay', 'display', 'graphics', 'controls', 'manage', 'saves', 'launcher'];
+  const shown = () => tabs.filter(name => !elements.get(`pane-${name}`).hidden);
   assert.equal(gamepad.paused(), false);
   gamepad.actions.menu();
   assert.equal(elements.get('page-settings').open, true);
-  assert.deepEqual(shown(), ['settings']);
-  gamepad.actions.next();
-  assert.deepEqual(shown(), ['controls']);
-  gamepad.actions.next();
-  assert.deepEqual(shown(), ['maintenance']);
-  gamepad.actions.next();
-  assert.deepEqual(shown(), ['maintenance']);
+  assert.deepEqual(shown(), ['gameplay']);
   gamepad.actions.previous();
-  assert.deepEqual(shown(), ['controls']);
+  assert.deepEqual(shown(), ['gameplay']);
+  gamepad.actions.next();
+  assert.deepEqual(shown(), ['display']);
+  for (let i = 0; i < 10; i++) gamepad.actions.next();
+  assert.deepEqual(shown(), ['launcher']);
+  assert.equal(elements.get('tab-launcher')['aria-selected'], 'true');
+  assert.equal(elements.get('tab-gameplay')['aria-selected'], 'false');
+  gamepad.actions.previous();
+  assert.deepEqual(shown(), ['saves']);
   gamepad.actions.back();
-  assert.deepEqual(shown(), ['settings']);
-  assert.equal(elements.get('page-settings').open, true);
+  assert.equal(elements.get('page-settings').open, false);
+  // Settings reopens on the tab it closed on.
+  gamepad.actions.menu();
+  assert.deepEqual(shown(), ['saves']);
+  await view.click('tab-controls');
+  assert.deepEqual(shown(), ['controls']);
   gamepad.actions.back();
   assert.equal(elements.get('page-settings').open, false);
   gamepad.actions.view();
