@@ -17,7 +17,7 @@ function state() {
   };
 }
 
-async function renderer(data = state(), copyError = null, notes = { releases: [], unseen: [], current: '0.1.39' }) {
+async function renderer(data = state(), copyError = null, notes = { releases: [], unseen: [], current: '0.1.39' }, steam = {}) {
   const changelogSeen = [], calls = [], elements = new Map(), droppedFiles = [], listeners = {}, gamepad = {};
   let logCallback, resetCallback, activityCallback;
   function element(classes = '') {
@@ -49,7 +49,10 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     copyActivityLog: async () => { calls.push('copyActivityLog'); if (copyError) throw copyError; },
     saveSettings: async value => { calls.push(['saveSettings', value]); return { ...data, config: { ...data.config, settings: port.normalizeSettings(value) } }; },
     changelog: async () => notes, markChangelogSeen: async () => { changelogSeen.push(true); },
-    play: async () => { calls.push('play'); }, launchGame: async () => { calls.push('launchGame'); }
+    play: async () => { calls.push('play'); }, launchGame: async () => { calls.push('launchGame'); },
+    steamStatus: async () => ({ ...steam }), steamOffered: async prompt => { calls.push(`steamOffered:${prompt}`); },
+    addToSteam: async options => { calls.push(['addToSteam', options]); steam = { ...steam, inSteam: true, needsFix: false, offer: false, offerFix: false };
+      return { added: true, play: options.play, name: 'Super Mario Sunshine', artwork: 5, total: 5 }; }
   };
   const context = vm.createContext({ console, setInterval() {}, requestAnimationFrame: callback => setImmediate(callback),
     window: { sms, smsActivityLog: require('../src/activity-log'), smsGamepadNav: { start: options => Object.assign(gamepad, options) },
@@ -351,4 +354,84 @@ test('controller buttons open settings, step through its tabs, go back and pause
   assert.equal(elements.get('console-body').hidden, true);
   await view.emitActivity({ label: 'Play Super Mario Sunshine', startedAt: Date.now() });
   assert.equal(gamepad.paused(), true);
+});
+
+test('the Steam banner offers Add to Steam, then shows a tick once the launcher is in the library', async () => {
+  const hidden = await renderer();
+  assert.equal(hidden.elements.get('add-to-steam').hidden, true);
+  const add = await renderer(state(), null, undefined, { available: true, inSteam: false });
+  assert.equal(add.elements.get('add-to-steam').hidden, false);
+  assert.equal(add.elements.get('steam-banner-title').textContent, 'Add to Steam');
+  assert.equal(add.elements.get('steam-banner-mark').textContent, '+');
+  // Started from Steam (Game Mode): in the library, with nothing to do.
+  const fromSteam = await renderer(state(), null, undefined, { available: false, inSteam: true });
+  const banner = fromSteam.elements.get('add-to-steam');
+  assert.equal(banner.hidden, false);
+  assert.equal(banner.disabled, true);
+  assert.ok(banner.classList.contains('in-steam'));
+  assert.equal(fromSteam.elements.get('steam-banner-title').textContent, 'In your Steam library');
+  assert.equal(fromSteam.elements.get('steam-banner-mark').textContent, '✓');
+  // Added by hand or before: selecting the tick updates it, keeping Skip Launcher as Steam has it.
+  const update = await renderer(state(), null, undefined, { available: true, inSteam: true, skipLauncher: true });
+  assert.equal(update.elements.get('add-to-steam').disabled, false);
+  await update.click('add-to-steam');
+  assert.equal(update.elements.get('steam-add').open, true);
+  assert.equal(update.elements.get('steam-add-confirm').textContent, 'Update in Steam');
+  assert.equal(update.elements.get('steam-skip-launcher').checked, true);
+});
+
+test('Play on SteamOS offers Add to Steam once, and plays whatever the player chooses', async () => {
+  const offer = { available: true, inSteam: false, steamOS: true, offer: true };
+  const ui = await renderer({ ...state(), game: { ...state().game, needsUpdate: false } }, null, undefined, offer);
+  await ui.click('play');
+  assert.equal(ui.elements.get('steam-add').open, true);
+  assert.equal(ui.elements.get('steam-add-cancel').textContent, 'Not now');
+  assert.deepEqual(ui.calls, ['steamOffered:play']);
+  ui.elements.get('steam-add').close();
+  ui.elements.get('steam-add').dispatch('close');
+  await new Promise(setImmediate);
+  assert.deepEqual(ui.calls, ['steamOffered:play', 'launchGame']);
+  await ui.click('play');
+  assert.equal(ui.elements.get('steam-add').open, false);
+  assert.deepEqual(ui.calls, ['steamOffered:play', 'launchGame', 'launchGame']);
+
+  const adding = await renderer({ ...state(), game: { ...state().game, needsUpdate: false } }, null, undefined, offer);
+  await adding.click('play');
+  adding.elements.get('steam-skip-launcher').checked = true;
+  await adding.click('steam-add-confirm');
+  adding.elements.get('steam-add').dispatch('close');
+  await new Promise(setImmediate);
+  assert.equal(JSON.stringify(adding.calls), JSON.stringify(['steamOffered:play', ['addToSteam', { play: true }], 'launchGame']));
+  assert.match(adding.elements.get('message-text').textContent, /Added "Super Mario Sunshine" in your Steam library/);
+  assert.equal(adding.elements.get('steam-banner-title').textContent, 'In your Steam library');
+});
+
+test("a shortcut made by hand without --no-sandbox is offered a fix when the launcher opens, once", async () => {
+  const broken = { available: true, inSteam: true, needsFix: true, offerFix: true, skipLauncher: true };
+  const ui = await renderer(state(), null, undefined, broken);
+  assert.equal(ui.elements.get('steam-add').open, true);
+  assert.equal(ui.elements.get('steam-add-kicker').textContent, 'Fix for Game Mode');
+  assert.equal(ui.elements.get('steam-add-confirm').textContent, 'Fix shortcut');
+  assert.equal(ui.elements.get('steam-skip-launcher').checked, true);
+  assert.deepEqual(ui.calls, ['steamOffered:fix']);
+  const banner = ui.elements.get('add-to-steam');
+  assert.ok(banner.classList.contains('needs-fix'));
+  assert.equal(ui.elements.get('steam-banner-mark').textContent, '!');
+  await ui.click('steam-add-confirm');
+  assert.equal(JSON.stringify(ui.calls), JSON.stringify(['steamOffered:fix', ['addToSteam', { play: true }]]));
+  assert.match(ui.elements.get('message-text').textContent, /Fixed "Super Mario Sunshine" in Steam with its artwork: it opens in Game Mode now/);
+  assert.equal(ui.elements.get('steam-banner-title').textContent, 'In your Steam library');
+  assert.equal(banner.classList.contains('needs-fix'), false);
+
+  // Declined before: the banner still offers it, without the popup.
+  const declined = await renderer(state(), null, undefined, { ...broken, offerFix: false });
+  assert.equal(declined.elements.get('steam-add').open, false);
+  await declined.click('add-to-steam');
+  assert.equal(declined.elements.get('steam-add-confirm').textContent, 'Fix shortcut');
+
+  // Started from that shortcut: Steam can't close under it, so the banner says what to change.
+  const fromSteam = await renderer(state(), null, undefined, { available: false, inSteam: true, needsFix: true });
+  assert.equal(fromSteam.elements.get('steam-add').open, false);
+  assert.equal(fromSteam.elements.get('add-to-steam').disabled, true);
+  assert.match(fromSteam.elements.get('steam-banner-detail').textContent, /add --no-sandbox to its launch options/);
 });

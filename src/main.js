@@ -191,7 +191,11 @@ function loadConfig() {
     // The newest launcher version whose changelog the player has been shown.
     changelogSeen: changelog.baseVersion(saved.changelogSeen),
     // Which wording of Beta's notes a Beta build last showed.
-    changelogBetaSeen: /^[a-f0-9]{16}$/.test(saved.changelogBetaSeen) ? saved.changelogBetaSeen : null
+    changelogBetaSeen: /^[a-f0-9]{16}$/.test(saved.changelogBetaSeen) ? saved.changelogBetaSeen : null,
+    // Whether Play has offered Add to Steam on SteamOS yet (it does once).
+    steamOffered: Boolean(saved.steamOffered),
+    // Whether the launcher has offered to fix a Steam shortcut without --no-sandbox.
+    steamFixOffered: Boolean(saved.steamFixOffered)
   };
   if (config.installId !== saved.installId) {
     try { saveConfig(); } catch (error) { log(`Could not save preferences: ${error.message}`); }
@@ -277,14 +281,62 @@ async function locateSteam() {
   return root ? { root, accounts: steam.steamAccounts(root) } : null;
 }
 
-// For the home screen's Add to Steam banner: offered while Steam is installed
-// and the launcher is not in its library yet.
-async function steamStatus() {
+// SteamOS, as on a Steam Deck (LCD or OLED alike): Play offers Add to Steam there once.
+function onSteamOS() {
+  if (process.platform !== 'linux') return false;
+  const read = file => { try { return fs.readFileSync(file, 'utf8'); } catch { return ''; } };
+  return steam.isSteamOS({ osRelease: read('/etc/os-release'), vendor: read('/sys/devices/virtual/dmi/id/sys_vendor') });
+}
+
+// The home screen's Steam banner: Add to Steam while Steam is installed and the
+// launcher is not in its library yet, and a tick once it is. `reason` says why,
+// and goes in the log whenever it changes, so a player's saved log shows it.
+// The AppImage needs `--no-sandbox` from Steam: without it, a shortcut opens
+// the launcher in Desktop Mode but not in Game Mode.
+const STEAM_LAUNCH_OPTIONS = process.platform === 'linux' ? '--no-sandbox' : '';
+
+async function readSteamStatus() {
   const exe = launcherExe();
-  if (!exe || startedFromSteam()) return { available: false };
+  if (!exe) return { available: false, reason: process.platform === 'linux' && app.isPackaged
+    ? "Add to Steam isn't offered: the launcher isn't running from its AppImage." : null };
+  if (startedFromSteam()) {
+    // Steam's shortcut started this launcher, so its options are ours.
+    const needsFix = steam.missingOptions(process.argv.slice(1).join(' '), STEAM_LAUNCH_OPTIONS);
+    return { available: false, inSteam: true, needsFix, reason: needsFix
+      ? `Steam: the launcher was started from a Steam shortcut without ${STEAM_LAUNCH_OPTIONS}, so it won't open in Game Mode.`
+      : 'Steam: the launcher was started from Steam, so it is in your Steam library.' };
+  }
   const located = await locateSteam();
-  if (!located || !located.accounts.length) return { available: false };
-  return { available: true, inSteam: steam.hasShortcut({ ...located, exe }) };
+  if (!located) return { available: false, reason: "Add to Steam isn't offered: no signed-in Steam was found on this computer." };
+  if (!located.accounts.length)
+    return { available: false, reason: `Add to Steam isn't offered: nobody has signed in to Steam at ${located.root} yet.` };
+  const options = steam.shortcutLaunchOptions({ ...located, exe });
+  const inSteam = steam.hasShortcut({ ...located, exe });
+  const steamOS = onSteamOS();
+  const needsFix = inSteam && steam.missingOptions(options, STEAM_LAUNCH_OPTIONS);
+  return { available: true, inSteam, needsFix, skipLauncher: steam.skipsLauncher(options), steamOS,
+    offer: steamOS && !inSteam && !config.steamOffered,
+    offerFix: needsFix && !config.steamFixOffered,
+    reason: needsFix ? `Steam: the launcher's shortcut in Steam is missing ${STEAM_LAUNCH_OPTIONS}, so it won't open in Game Mode (${located.root}).`
+      : inSteam ? `Steam: the launcher is in your Steam library (${located.root}).`
+      : `Steam: the launcher isn't in your Steam library yet (${located.root}${steamOS ? ', SteamOS' : ''}), so Add to Steam is offered.` };
+}
+
+let steamReasonLogged = null;
+async function steamStatus() {
+  let status;
+  try { status = await readSteamStatus(); }
+  catch (error) { status = { available: false, reason: `Add to Steam isn't offered: Steam could not be checked (${error.message}).` }; }
+  if (status.reason && status.reason !== steamReasonLogged) log(status.reason);
+  steamReasonLogged = status.reason;
+  return status;
+}
+
+// Play offers Add to Steam on SteamOS only once, and opening the launcher
+// offers to fix a shortcut without --no-sandbox only once, whatever the player chooses.
+function markSteamOffered(prompt) {
+  config[prompt === 'fix' ? 'steamFixOffered' : 'steamOffered'] = true;
+  saveConfig();
 }
 
 // `play` (Skip Launcher) adds `--play`, so Steam starts the game without the launcher's window.
@@ -312,7 +364,7 @@ async function addToSteam({ play = false } = {}) {
     await waitForSteamToClose();
   }
   const results = steam.addShortcut({ root, accounts, exe, startDir: path.dirname(exe), artwork,
-    launchOptions: process.platform === 'linux' ? '--no-sandbox' : '', play: Boolean(play) });
+    launchOptions: STEAM_LAUNCH_OPTIONS, play: Boolean(play) });
   const added = results.some(result => result.added);
   const images = Math.min(...results.map(result => result.artwork));
   log(`${added ? 'Added' : 'Updated'} ${steam.APP_NAME} in Steam${play ? ' with Skip Launcher' : ''} (${images} of ${steam.ARTWORK.length} artwork images, ${root}).`);
@@ -1078,6 +1130,7 @@ function registerHandlers() {
   ipcMain.handle('clean-preview', () => exclusive('Preview cleanup', () => clean(true)));
   ipcMain.handle('backup-saves', () => exclusive('Back up saves', () => makeSaveBackup('manual')));
   ipcMain.handle('steam-status', () => steamStatus());
+  ipcMain.handle('steam-offered', (_event, prompt) => markSteamOffered(prompt));
   ipcMain.handle('add-to-steam', (_event, options) => exclusive('Add to Steam', () => addToSteam(options)));
   ipcMain.handle('import-dolphin-save', (_event, file) => exclusive('Import Dolphin save', async () => {
     if (file == null) {
