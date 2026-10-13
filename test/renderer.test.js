@@ -238,6 +238,22 @@ test('the Discord toggle shows the setting and is saved with the others', async 
   assert.equal(ui.calls.at(-1)[1].discordPresence, false);
 });
 
+test('dark mode is off by default, switches the theme at once and is saved with the others', async () => {
+  const ui = await renderer(state());
+  const shell = ui.elements.get('shell');
+  assert.equal(ui.elements.get('darkMode').checked, false);
+  assert.equal(shell.classList.contains('dark'), false);
+  ui.elements.get('darkMode').checked = true;
+  ui.elements.get('darkMode').dispatch('input');
+  assert.equal(shell.classList.contains('dark'), true);
+  ui.elements.get('darkMode').dispatch('change');
+  await new Promise(setImmediate);
+  assert.equal(ui.calls.at(-1)[1].darkMode, true);
+  assert.equal(shell.classList.contains('dark'), true);
+  const saved = state(); saved.config.settings = port.normalizeSettings({ darkMode: true });
+  assert.equal((await renderer(saved)).elements.get('shell').classList.contains('dark'), true);
+});
+
 test('the top bar shows the online count once the usage API answers', async () => {
   const data = state(), ui = await renderer(data);
   assert.equal(ui.elements.get('online-number').textContent, '');

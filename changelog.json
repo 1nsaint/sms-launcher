@@ -2,7 +2,8 @@
   "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
   "beta": {
     "launcher": [
-      "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them."
+      "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
+      "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher."
     ],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
