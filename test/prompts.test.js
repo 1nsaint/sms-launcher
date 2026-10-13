@@ -44,7 +44,20 @@ test('the keyboard C-stick prompt is the mouse with mouse look, else the camera 
   assert.deepEqual(prompts.icon('keyboard', 'CSTICK', {}, {}), { kind: 'key', text: 'IJKL' });
 });
 
-test('every style draws eight icons, in the game\'s glyph order', () => {
-  assert.deepEqual(prompts.GLYPHS, ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'CSTICK']);
-  for (const style of prompts.DRAWN) assert.equal(prompts.icons(style, {}, {}).length, 8);
+test('every style draws the eight button icons in the game\'s glyph order, then the save state binding', () => {
+  assert.deepEqual(prompts.GLYPHS, ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'CSTICK', 'SAVE_STATE_1', 'SAVE_STATE_2']);
+  for (const style of prompts.DRAWN) assert.equal(prompts.icons(style, {}, {}).length, 10);
 });
+
+test('the strips end with the save state binding, for the pause menu\'s hint', () => {
+  assert.equal(prompts.GLYPHS.length, prompts.BUTTON_GLYPHS + 2);
+  const hint = style => prompts.icons(style, {}, {}).slice(prompts.BUTTON_GLYPHS);
+  assert.deepEqual(hint('playstation'), [{ kind: 'shoulder', text: 'L1' }, { kind: 'shoulder', text: 'R1' }]);
+  assert.deepEqual(hint('xbox'), [{ kind: 'shoulder', text: 'LB' }, { kind: 'shoulder', text: 'RB' }]);
+  assert.deepEqual(hint('keyboard'), [{ kind: 'key', text: 'F5' }, { kind: 'empty' }]);
+  assert.deepEqual(prompts.icons('xbox', {}, { SAVE_STATE: ['PAD_BACK+PAD_Y'] }).slice(prompts.BUTTON_GLYPHS),
+    [{ kind: 'pill', text: 'View' }, { kind: 'face', text: 'Y', fill: '#e2a90b' }]);
+  assert.deepEqual(prompts.icons('playstation', {}, { SAVE_STATE: ['PAD_RSTICK'] }).slice(prompts.BUTTON_GLYPHS),
+    [{ kind: 'pill', text: 'R3' }, { kind: 'empty' }]);
+});
+

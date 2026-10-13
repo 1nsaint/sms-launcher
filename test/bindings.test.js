@@ -20,7 +20,9 @@ test('browser key codes map to the key names the game reads', () => {
   assert.equal(bindings.keyFromCode('ArrowLeft'), 'LEFT');
   assert.equal(bindings.keyFromCode('ShiftRight'), 'RSHIFT');
   assert.equal(bindings.keyFromCode('Space'), 'SPACE');
-  assert.equal(bindings.keyFromCode('F12'), null);
+  assert.equal(bindings.keyFromCode('F5'), 'F5');
+  assert.equal(bindings.keyFromCode('F12'), 'F12');
+  assert.equal(bindings.keyFromCode('F13'), null);
   assert.equal(bindings.keyFromCode('MetaLeft'), null);
 });
 
@@ -68,4 +70,25 @@ test('the bindings file adds controller buttons only to the controls changed', (
   assert.ok(lines.includes('Z = Z PAD_RT'));
   assert.ok(lines.includes('B = LSHIFT RSHIFT C'));
   assert.ok(bindings.fileText({}).includes('A = SPACE X\n'));
+});
+
+test('save states default to F5 and F6, and to L1 + R1 (LB + RB) held together on a controller', () => {
+  assert.deepEqual(bindings.keysFor({}, 'SAVE_STATE'), ['F5']);
+  assert.deepEqual(bindings.keysFor({}, 'LOAD_STATE'), ['F6']);
+  assert.deepEqual(bindings.padsFor({}, 'SAVE_STATE'), ['PAD_LB+PAD_RB']);
+  assert.deepEqual(bindings.padsFor({}, 'LOAD_STATE'), []);
+  assert.equal(bindings.padLabel('PAD_LB+PAD_RB'), 'LB + RB');
+  assert.equal(bindings.padLabel('PAD_A'), 'A');
+});
+
+test('two controller buttons held together are one binding, written as the game reads it', () => {
+  assert.equal(bindings.padCombo('PAD_LB', 'PAD_RT'), 'PAD_LB+PAD_RT');
+  assert.equal(bindings.padCombo('PAD_A', 'PAD_A'), 'PAD_A');
+  assert.deepEqual(bindings.normalizePads({ SAVE_STATE: ['PAD_LB+PAD_RB'] }), {});
+  assert.deepEqual(bindings.normalizePads({ SAVE_STATE: ['PAD_BACK+PAD_Y', 'PAD_A+PAD_A', 'PAD_A+PAD_B+PAD_X', 'PAD_A+NOPE'] }),
+    { SAVE_STATE: ['PAD_BACK+PAD_Y'] });
+  assert.deepEqual(bindings.normalizePads({ LOAD_STATE: ['PAD_LB+PAD_RT'] }), { LOAD_STATE: ['PAD_LB+PAD_RT'] });
+  const lines = bindings.fileText({}, { SAVE_STATE: ['PAD_BACK+PAD_Y'] }).split('\n');
+  assert.ok(lines.includes('SAVE_STATE = F5 PAD_BACK+PAD_Y'));
+  assert.ok(lines.includes('LOAD_STATE = F6'));
 });

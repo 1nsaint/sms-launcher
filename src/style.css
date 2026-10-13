@@ -382,6 +382,18 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 #pane-saves .dolphin-save-drop { margin: 0; }
 #pane-saves .dolphin-save-drop .helper { display: block; margin: 4px 0 10px; }
 #dolphin-import-result { margin-top: 8px; }
+.save-state-list { display: grid; gap: 8px; max-height: 320px; margin: 8px 0; overflow: auto; }
+.save-state-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-top: 1px solid #e3eef0; }
+.save-state-row:first-child { border-top: 0; }
+.save-state-picture { flex: none; width: 96px; height: 72px; border-radius: 6px; background: #0b1b24; object-fit: cover; }
+.save-state-text { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.save-state-text strong { color: #334b51; font-size: 13px; }
+.save-state-text small { overflow: hidden; color: #607a80; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.save-state-empty { margin: 0; color: #607a80; font-size: 12px; }
+#save-state-result:empty { display: none; }
+.dark .save-state-row { border-color: #23404f; }
+.dark .save-state-text strong { color: #e6f2f4; }
+.dark :is(.save-state-text small, .save-state-empty) { color: #93acb4; }
 
 /* Dark mode (Settings → Launcher): the dialogs and notices take the backdrop's deep blue. */
 .dark { color-scheme: dark; }

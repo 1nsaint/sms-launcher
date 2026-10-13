@@ -4,7 +4,8 @@
     "launcher": [
       "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
       "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher.",
-      "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered."
+      "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered.",
+      "Save states: Settings → Saves lists your save states with a picture of each, imports states others send you, and shows or deletes them. Settings → Controls has Save a state and Load the newest state, and a controller binding can be two buttons held together."
     ],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
@@ -19,7 +20,8 @@
       "Fixed a possible crash when Eclipse's Fire Petey breathes fire.",
       "HD cutscene setup now names the movie and says the disc image is damaged or trimmed, instead of only \"Expected THP 1.0 or 1.1\".",
       "Fixed F10 not showing the mouse cursor in borderless or fullscreen when it releases mouse look.",
-      "Fixed Eclipse getting slower the longer you played, until you restarted."
+      "Fixed Eclipse getting slower the longer you played, until you restarted.",
+      "Save states: in a level, L1 + R1 (LB + RB, or F5) saves the exact moment you're in. Pause and press them again to pick a state and go back to it, with everything where it was; the pause menu shows the buttons at its top right. F6 loads the newest. States are files you can share; one from another version of the game takes you to the same level and spot."
     ]
   },
   "releases": [

@@ -198,6 +198,13 @@
               <div class="actions"><button class="subtle" id="backup-saves">Back up saves</button><button class="subtle" id="open-backups">Open backup folder</button></div>
               <div class="path-row"><label class="backup-picker"><span>Restore a backup</span><select id="backup-list"></select></label><button class="subtle" id="restore-saves">Restore backup</button></div>
             </div>
+            <h2 class="group-title">Save states</h2>
+            <div class="settings-group save-states">
+              <p class="row-note lead" id="save-state-help"></p>
+              <div id="save-state-list" class="save-state-list"></div>
+              <div class="actions"><button class="subtle" id="import-save-state">Import a state</button><button class="subtle" id="open-save-states">Open save states folder</button></div>
+              <p id="save-state-result" class="helper" role="status" aria-live="polite"></p>
+            </div>
             <h2 class="group-title">Import</h2>
             <div id="dolphin-save-drop" class="dolphin-save-drop" aria-disabled="false"><strong>Import a Dolphin save</strong><p class="helper">Drop a North American Sunshine .gci file here, or choose one. Your current saves are backed up before importing.</p><button class="subtle" id="import-dolphin-save">Choose .gci file</button></div>
             <p id="dolphin-import-result" class="helper" role="status" aria-live="polite"></p>

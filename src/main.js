@@ -14,6 +14,7 @@ const updateChannel = require('./update-channel');
 const steam = require('./steam');
 const appImageUpdate = require('./appimage-update');
 const bindings = require('./bindings');
+const savestates = require('./savestates');
 const prompts = require('./prompts');
 const gameSource = require('./game-source');
 const portable = require('./portable');
@@ -673,7 +674,8 @@ async function play(installation = null) {
     env.SMS_BINDINGS = file;
   }
   // The prompt images the Controls page drew from these bindings (save-prompts).
-  if (settings.buttonPrompts && settings.buttonPrompts !== 'gamecube') env.SMS_BUTTON_PROMPT_DIR = promptDirectory();
+  // Every style's images, Original prompts included: the pause menu's save state hint draws the buttons from them.
+  env.SMS_BUTTON_PROMPT_DIR = promptDirectory();
   if (config.settings.discordPresence) env.SMS_PRESENCE = '1';
   if (portableRoot && !env.SMS_GX_SHADER_CACHE) {
     // The game only makes the folder for its default location.
@@ -1119,6 +1121,34 @@ function registerHandlers() {
   ipcMain.handle('open-backups', () => {
     fs.mkdirSync(saves.backupRoot(), { recursive: true, mode: 0o700 });
     return shell.openPath(saves.backupRoot());
+  });
+  // Save states: files the game keeps in a savestates folder beside the memory card (src/savestates.js).
+  const stateDirectory = () => savestates.stateDirectory(currentSaveDirectory());
+  ipcMain.handle('save-states', () => ({ directory: stateDirectory(), states: savestates.listStates(stateDirectory()) }));
+  ipcMain.handle('open-save-states', () => {
+    fs.mkdirSync(stateDirectory(), { recursive: true });
+    return shell.openPath(stateDirectory());
+  });
+  ipcMain.handle('show-save-state', (_event, name) => shell.showItemInFolder(savestates.statePath(stateDirectory(), name)));
+  ipcMain.handle('import-save-state', async () => {
+    const result = await dialog.showOpenDialog(window, {
+      title: 'Import save states', properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Super Mario Sunshine save states', extensions: ['smsstate'] }]
+    });
+    if (result.canceled || !result.filePaths.length) return { cancelled: true };
+    const imported = result.filePaths.map(file => savestates.importState(file, stateDirectory()));
+    log(`Imported ${imported.length} save state(s) into ${stateDirectory()}.`);
+    return { imported: imported.length };
+  });
+  ipcMain.handle('delete-save-state', async (_event, name) => {
+    const file = savestates.statePath(stateDirectory(), name);
+    const answer = await dialog.showMessageBox(window, {
+      type: 'warning', buttons: ['Cancel', 'Delete state'], defaultId: 0, cancelId: 0,
+      message: 'Delete this save state?', detail: path.basename(file)
+    });
+    if (answer.response !== 1) return { cancelled: true };
+    savestates.deleteState(stateDirectory(), name);
+    return { deleted: true };
   });
   ipcMain.handle('clean', () => exclusive('Clean build output', async () => {
     const answer = await dialog.showMessageBox(window, {
