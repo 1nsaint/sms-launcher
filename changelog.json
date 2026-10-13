@@ -4,7 +4,8 @@
     "launcher": [],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
-      "Fixed the circle wipes, like the one from the file select into Delfino Plaza and the one after you collect a Shine, showing a see-through striped grey instead of solid black at picture sharpness above Original (1×)."
+      "Fixed the circle wipes, like the one from the file select into Delfino Plaza and the one after you collect a Shine, showing a see-through striped grey instead of solid black at picture sharpness above Original (1×).",
+      "Fixed two sparkles from the GO! at the start of a level staying on screen for good, by the Shine counter and at the top right, after you pause and continue."
     ]
   },
   "releases": [
