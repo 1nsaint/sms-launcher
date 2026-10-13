@@ -292,8 +292,12 @@ function onSteamOS() {
 // launcher is not in its library yet, and a tick once it is. `reason` says why,
 // and goes in the log whenever it changes, so a player's saved log shows it.
 // The AppImage needs `--no-sandbox` from Steam: without it, a shortcut opens
-// the launcher in Desktop Mode but not in Game Mode.
+// the launcher in Desktop Mode but not in Game Mode. AppImages built with
+// scripts/after-pack.js always pass it themselves (SMS_LAUNCHER_NO_SANDBOX), so
+// for them a shortcut without it needs no fix; new shortcuts still get it.
 const STEAM_LAUNCH_OPTIONS = process.platform === 'linux' ? '--no-sandbox' : '';
+const sandboxAlwaysOff = process.env.SMS_LAUNCHER_NO_SANDBOX === '1';
+delete process.env.SMS_LAUNCHER_NO_SANDBOX; // not passed on to the game or Steam
 
 async function readSteamStatus() {
   const exe = launcherExe();
@@ -301,7 +305,7 @@ async function readSteamStatus() {
     ? "Add to Steam isn't offered: the launcher isn't running from its AppImage." : null };
   if (startedFromSteam()) {
     // Steam's shortcut started this launcher, so its options are ours.
-    const needsFix = steam.missingOptions(process.argv.slice(1).join(' '), STEAM_LAUNCH_OPTIONS);
+    const needsFix = !sandboxAlwaysOff && steam.missingOptions(process.argv.slice(1).join(' '), STEAM_LAUNCH_OPTIONS);
     return { available: false, inSteam: true, needsFix, reason: needsFix
       ? `Steam: the launcher was started from a Steam shortcut without ${STEAM_LAUNCH_OPTIONS}, so it won't open in Game Mode.`
       : 'Steam: the launcher was started from Steam, so it is in your Steam library.' };
@@ -313,7 +317,7 @@ async function readSteamStatus() {
   const options = steam.shortcutLaunchOptions({ ...located, exe });
   const inSteam = steam.hasShortcut({ ...located, exe });
   const steamOS = onSteamOS();
-  const needsFix = inSteam && steam.missingOptions(options, STEAM_LAUNCH_OPTIONS);
+  const needsFix = inSteam && !sandboxAlwaysOff && steam.missingOptions(options, STEAM_LAUNCH_OPTIONS);
   return { available: true, inSteam, needsFix, skipLauncher: steam.skipsLauncher(options), steamOS,
     offer: steamOS && !inSteam && !config.steamOffered,
     offerFix: needsFix && !config.steamFixOffered,
