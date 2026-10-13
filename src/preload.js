@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('sms', {
   clean: () => ipcRenderer.invoke('clean'),
   backupSaves: () => ipcRenderer.invoke('backup-saves'),
   steamStatus: () => ipcRenderer.invoke('steam-status'),
+  steamOffered: prompt => ipcRenderer.invoke('steam-offered', prompt),
   addToSteam: options => ipcRenderer.invoke('add-to-steam', options),
   importDolphinSave: file => {
     const filePath = file ? webUtils.getPathForFile(file) : null;

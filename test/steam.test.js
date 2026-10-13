@@ -193,3 +193,47 @@ test('artwork that fails to download, or is not a PNG, is left out', async () =>
   });
   assert.deepEqual(artwork.map(piece => Boolean(piece.data)), [true, true, false, false, true]);
 });
+
+test("the banner reads Skip Launcher from the launcher's launch options in Steam", t => {
+  const root = fakeSteam(t, { accounts: ['111'] });
+  const options = { root, accounts: ['111'], exe: '/home/deck/Applications/SMS-Launcher.AppImage', startDir: '/home/deck/Applications', platform: 'linux' };
+  assert.equal(steam.shortcutLaunchOptions(options), null);
+  steam.addShortcut({ ...options, launchOptions: '--no-sandbox', play: true });
+  assert.equal(steam.shortcutLaunchOptions(options), '--no-sandbox --play');
+  assert.equal(steam.skipsLauncher(steam.shortcutLaunchOptions(options)), true);
+  steam.addShortcut({ ...options, play: false });
+  assert.equal(steam.skipsLauncher(steam.shortcutLaunchOptions(options)), false);
+  assert.equal(steam.skipsLauncher('--player'), false);
+});
+
+test('SteamOS is recognised by its os-release or a Valve-made Deck, LCD or OLED', () => {
+  assert.equal(steam.isSteamOS({ osRelease: 'NAME="SteamOS"\nID=steamos\nID_LIKE=arch\nVARIANT_ID=steamdeck\n' }), true);
+  assert.equal(steam.isSteamOS({ osRelease: 'ID=holoiso\nID_LIKE="arch steamos"\n' }), true);
+  assert.equal(steam.isSteamOS({ osRelease: 'ID=bazzite\nID_LIKE="fedora"\n', vendor: 'Valve\n' }), true);
+  assert.equal(steam.isSteamOS({ osRelease: 'ID=ubuntu\nID_LIKE=debian\n', vendor: 'LENOVO\n' }), false);
+  assert.equal(steam.isSteamOS({ osRelease: 'ID=steamosish\n' }), false);
+  assert.equal(steam.isSteamOS(), false);
+});
+
+test('a shortcut added by hand gets --no-sandbox and the game\'s name, keeping its app ID and the player\'s options', () => {
+  const exe = '/home/deck/Applications/SMS-Launcher.AppImage';
+  const handMade = name => [[MAP, 'shortcuts', [[MAP, '0', [[INT32, 'appid', -99], [STRING, 'appname', name], [STRING, 'exe', `"${exe}"`],
+    [STRING, 'StartDir', '"/home/deck/Applications/"'], [STRING, 'LaunchOptions', '--play'], [INT32, 'LastPlayTime', 1700000000]]]]]];
+  const root = handMade('SMS-Launcher.AppImage');
+  const result = steam.upsertShortcut(root, { exe, startDir: '/home/deck/Applications', launchOptions: '--no-sandbox', platform: 'linux' });
+  assert.equal(result.added, false);
+  assert.equal(result.appId, -99 >>> 0);
+  assert.equal(field(result.fields, 'LaunchOptions'), '--no-sandbox --play');
+  assert.equal(field(result.fields, 'appname'), 'Super Mario Sunshine');
+  assert.equal(field(result.fields, 'LastPlayTime'), 1700000000);
+  assert.equal(field(root, 'shortcuts').length, 1);
+  assert.equal(field(steam.upsertShortcut(handMade('Sunshine!'), { exe, startDir: '/x', launchOptions: '--no-sandbox', platform: 'linux' }).fields, 'appname'), 'Sunshine!');
+  assert.equal(field(steam.upsertShortcut(root, { exe, startDir: '/x', launchOptions: '--no-sandbox', play: false, platform: 'linux' }).fields, 'LaunchOptions'), '--no-sandbox');
+});
+
+test('a shortcut is missing launch options until it has every one of them', () => {
+  assert.equal(steam.missingOptions('', '--no-sandbox'), true);
+  assert.equal(steam.missingOptions('--play', '--no-sandbox'), true);
+  assert.equal(steam.missingOptions('--play --no-sandbox', '--no-sandbox'), false);
+  assert.equal(steam.missingOptions(null, ''), false);
+});
