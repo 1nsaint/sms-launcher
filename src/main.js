@@ -840,12 +840,12 @@ async function checkAppUpdate() {
 }
 
 async function updateChannels() {
-  let releases = [];
+  let releases = null;
   try {
     const response = await net.fetch(`https://api.github.com/repos/${updateChannel.REPOSITORY}/releases?per_page=100`,
       { headers: { Accept: 'application/vnd.github+json' } });
     if (response.ok) releases = await response.json();
-  } catch (_) { /* offline: Stable and the current choice are still offered */ }
+  } catch (_) { /* offline: Stable, Beta and the current choice are still offered */ }
   const channels = updateChannel.channelsFromReleases(releases);
   const chosen = config.settings.updateChannel;
   if (!channels.some(item => item.id === chosen))

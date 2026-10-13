@@ -31,5 +31,11 @@ test('lists Stable, then Beta, then pull request previews newest first', () => {
   assert.deepEqual(channels.map(item => item.id), ['stable', 'beta', 'pr-12', 'pr-6']);
   assert.equal(channels[2].label, 'Pull request #12');
   assert.equal(channelLabel('pr-6'), 'Pull request #6');
-  assert.deepEqual(channelsFromReleases(null).map(item => item.id), ['stable']);
+  assert.deepEqual(channelsFromReleases([]).map(item => item.id), ['stable']);
+});
+
+test('still offers Beta when the release list could not be read', () => {
+  // A failed or rate-limited request (GitHub allows 60 anonymous requests an hour).
+  assert.deepEqual(channelsFromReleases(null).map(item => item.id), ['stable', 'beta']);
+  assert.equal(channelsFromReleases(null)[1].label, 'Beta');
 });
