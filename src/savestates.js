@@ -56,6 +56,9 @@ function readState(file) {
       stage: String(info.stage || ''), episode: String(info.episode || ''),
       game: String(info.game || ''), flavor: String(info.flavor || ''),
       exact: info.exact === true, build: typeof info.build === 'string' ? info.build : '',
+      // Shines, blue coins, coins and lives when the state was saved (states from before these were recorded have none)
+      counts: ['shines', 'blueCoins', 'coins', 'lives'].every(key => Number.isInteger(info[key]))
+        ? { shines: info.shines, blueCoins: info.blueCoins, coins: info.coins, lives: info.lives } : null,
       thumbnail
     };
   } catch (_) {

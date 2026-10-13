@@ -1160,6 +1160,13 @@ function renderSaveStates({ states }) {
     detail.textContent = [state.episode, new Date(state.created).toLocaleString(), state.flavor === 'eclipse' ? 'Super Mario Eclipse' : '']
       .filter(Boolean).join(' · ');
     text.append(title, detail);
+    if (state.counts) {
+      const counts = document.createElement('small'); counts.className = 'save-state-counts';
+      const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+      counts.textContent = [plural(state.counts.shines, 'Shine', 'Shines'), plural(state.counts.blueCoins, 'blue coin', 'blue coins'),
+        plural(state.counts.coins, 'coin', 'coins'), plural(state.counts.lives, 'life', 'lives')].join(' · ');
+      text.append(counts);
+    }
     const actions = document.createElement('span'); actions.className = 'binding-actions';
     const button = (label, onClick) => {
       const item = document.createElement('button'); item.className = 'subtle'; item.textContent = label;

@@ -29,7 +29,8 @@ function stateFile(file, info, { thumbnail = Buffer.from('png!'), memory = 4096,
 }
 
 const info = (stage, created, extra = {}) => ({ format: 1, created, game: 'GMSE01', flavor: 'sunshine', stage,
-  episode: 'Road to the Big Windmill', area: 2, episodeIndex: 0, build: 'ab'.repeat(32), exact: true, ...extra });
+  episode: 'Road to the Big Windmill', area: 2, episodeIndex: 0, shines: 12, blueCoins: 30, coins: 45, lives: 4,
+  build: 'ab'.repeat(32), exact: true, ...extra });
 
 function tempDir() { return fs.mkdtempSync(path.join(os.tmpdir(), 'sms-states-')); }
 
@@ -49,6 +50,14 @@ test('a state reads as its description and picture, without the game memory', ()
   assert.equal(state.exact, true);
   assert.equal(state.thumbnail, `data:image/png;base64,${Buffer.from('png!').toString('base64')}`);
   assert.equal(state.name, 'a.smsstate');
+  assert.deepEqual(state.counts, { shines: 12, blueCoins: 30, coins: 45, lives: 4 });
+});
+
+test('states saved before their counts were recorded have none', () => {
+  const dir = tempDir();
+  const old = info('RICCO HARBOR', '2026-10-13T08:00:00Z');
+  for (const key of ['shines', 'blueCoins', 'coins', 'lives']) delete old[key];
+  assert.equal(savestates.readState(stateFile(path.join(dir, 'old.smsstate'), old)).counts, null);
 });
 
 test('files that are not states, or are cut short, are left out', () => {
