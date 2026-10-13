@@ -7,7 +7,8 @@
       "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered.",
       "Preparing the build tools on Windows now counts the files as it unpacks them, and stops with an explanation if unpacking makes no progress for five minutes, instead of staying on \"Unpacking build tools…\" for good.",
       "Fixed the launcher never opening in the Steam Deck's Game Mode when it was added to Steam by hand without the --no-sandbox launch option: the Linux launcher now always starts with it, so Steam shortcuts work as they are.",
-      "On the Steam Deck, the first time you choose Play the launcher offers to add Super Mario Sunshine to Steam. Once it's in Steam, the Add to Steam banner shows a tick instead of disappearing, and selecting it updates the artwork or Skip Launcher."
+      "On the Steam Deck, the first time you choose Play the launcher offers to add Super Mario Sunshine to Steam. Once it's in Steam, the Add to Steam banner shows a tick instead of disappearing, and selecting it updates the artwork or Skip Launcher.",
+      "Fixed updates failing to link your HD textures, HD cutscenes or Eclipse files into the new game version when an older update had left a broken link to a removed version (\"EISDIR\" on Windows)."
     ],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
