@@ -29,6 +29,7 @@ function showSettingsTab(name) {
   $('settings-panes').scrollTop = 0;
   if (name === 'controls') renderBindings();
   if (name === 'launcher') loadUpdateChannels();
+  if (name === 'saves') loadSaveStates();
 }
 for (const tab of settingsTabs) $(`tab-${tab}`).addEventListener('click', () => showSettingsTab(tab));
 $('page-settings').addEventListener('close', () => stopCapture());
@@ -54,7 +55,7 @@ $('softTrigger').addEventListener('change', () => saveSettings());
 
 function bindingNote() {
   return bindingMode === 'controller'
-    ? 'Choose Change, then press a button on your controller. Esc cancels. The sticks always move the sticks.'
+    ? 'Choose Change, then press a button on your controller, or hold two together. Esc cancels. The sticks always move the sticks.'
     : 'Choose Change, then press a key. Esc cancels.';
 }
 
@@ -75,14 +76,19 @@ function heldPadButtons() {
   return held;
 }
 
-// Waits for a newly pressed controller button (ones already held when capture began do not count).
-function watchPad(baseline) {
+// Waits for newly pressed controller buttons (ones already held when capture began do not count): two held
+// together make a two-button binding (LB + LT), and one let go on its own is a binding by itself.
+function watchPad(baseline, chord = []) {
   if (!capture) return;
   const held = heldPadButtons();
   for (const entry of held) {
-    if (baseline.has(entry)) continue;
+    if (baseline.has(entry) || chord.some(item => item.entry === entry)) continue;
     const pad = SmsBindings.padFromIndex(Number(entry.split(':')[1]));
-    if (!pad) continue;
+    if (pad) chord.push({ entry, pad });
+  }
+  const done = chord.length >= 2 || (chord.length === 1 && !held.has(chord[0].entry));
+  if (done) {
+    const pad = chord.length >= 2 ? SmsBindings.padCombo(chord[0].pad, chord[1].pad) : chord[0].pad;
     const { id, add } = capture;
     const pads = add ? [...SmsBindings.padsFor(padBindings, id).filter(item => item !== pad), pad] : [pad];
     padBindings = SmsBindings.normalizePads({ ...padBindings, [id]: pads });
@@ -90,8 +96,9 @@ function watchPad(baseline) {
     saveSettings();
     return;
   }
+  if (chord.length && capture) $('binding-note').textContent = `${SmsBindings.padLabel(chord[0].pad)}: let go, or press another button with it.`;
   for (const entry of [...baseline]) if (!held.has(entry)) baseline.delete(entry);  // released: may count when pressed again
-  padPoll = requestAnimationFrame(() => watchPad(baseline));
+  padPoll = requestAnimationFrame(() => watchPad(baseline, chord));
 }
 
 function captureKey(event) {
@@ -150,7 +157,9 @@ function renderPrompts() {
     const row = document.createElement('div'); row.className = 'prompt-row';
     const name = document.createElement('span'); name.textContent = text;
     if (strips[id]) {
-      const image = document.createElement('img'); image.src = strips[id].toDataURL('image/png'); image.alt = '';
+      // the GameCube buttons only; the strip's last icons are the pause menu's save state hint
+      const preview = SmsPrompts.drawStrip(document, id, keyBindings, padBindings, options, SmsPrompts.BUTTON_GLYPHS);
+      const image = document.createElement('img'); image.src = preview.toDataURL('image/png'); image.alt = '';
       row.append(name, image);
     } else {
       const note = document.createElement('em'); note.textContent = 'The game\'s own GameCube buttons';
@@ -158,7 +167,7 @@ function renderPrompts() {
     }
     return row;
   }));
-  if (style === 'gamecube') return;
+  // Saved with Original prompts too: the pause menu's save state hint draws its buttons from them.
   const images = Object.fromEntries(Object.entries(strips).map(([id, canvas]) => [id, canvas.toDataURL('image/png')]));
   const signature = JSON.stringify(images);
   if (signature === sentPrompts) return;
@@ -180,7 +189,7 @@ function renderBindings() {
     const what = controller ? 'button' : 'key';
     const items = controller ? SmsBindings.padsFor(padBindings, id).map(SmsBindings.padLabel)
       : SmsBindings.keysFor(keyBindings, id).map(key => key.replace('_', ' '));
-    if (capture?.id === id) keys.textContent = capture.add ? `Press a ${what} to add…` : `Press a ${what}…`;
+    if (capture?.id === id) keys.textContent = capture.add ? `Press a ${what} to add…` : controller ? 'Press a button, or two together…' : `Press a ${what}…`;
     else if (!items.length) { keys.textContent = 'None'; keys.classList.add('binding-none'); }
     else keys.replaceChildren(...items.map(text => {
       const item = document.createElement('kbd'); item.textContent = text; return item;
@@ -1122,6 +1131,71 @@ $('restore-saves').addEventListener('click', async () => {
   try { await window.sms.restoreSaves($('backup-list').value); await sync(); }
   catch (error) { showError(error); await sync(); }
 });
+
+// --- Save states (src/savestates.js): the game saves them, the launcher lists, imports and deletes them.
+function saveStateHelp() {
+  const pad = SmsBindings.padsFor(padBindings, 'SAVE_STATE').map(SmsBindings.padLabel)[0];
+  const saveKey = SmsBindings.keysFor(keyBindings, 'SAVE_STATE')[0];
+  const loadKey = SmsBindings.keysFor(keyBindings, 'LOAD_STATE')[0];
+  const save = [pad, saveKey].filter(Boolean).join(' or ') || 'the Save a state control';
+  return `In a level, ${save} saves the moment you're in; pause and press the same to load a state` +
+    `${loadKey ? ` (${loadKey} loads the newest)` : ''}. A state loads exactly in the game build that saved it; ` +
+    'from another build or someone else\'s game it takes you to the same place. Share a state by sending its file.';
+}
+
+function renderSaveStates({ states }) {
+  $('save-state-help').textContent = saveStateHelp();
+  if (!states.length) {
+    const empty = document.createElement('p'); empty.className = 'save-state-empty'; empty.textContent = 'No save states yet.';
+    $('save-state-list').replaceChildren(empty);
+    return;
+  }
+  $('save-state-list').replaceChildren(...states.map(state => {
+    const row = document.createElement('div'); row.className = 'save-state-row';
+    const picture = document.createElement(state.thumbnail ? 'img' : 'span'); picture.className = 'save-state-picture';
+    if (state.thumbnail) { picture.src = state.thumbnail; picture.alt = ''; }
+    const text = document.createElement('span'); text.className = 'save-state-text';
+    const title = document.createElement('strong'); title.textContent = state.stage || state.name.replace(/\.smsstate$/, '');
+    const detail = document.createElement('small');
+    detail.textContent = [state.episode, new Date(state.created).toLocaleString(), state.flavor === 'eclipse' ? 'Super Mario Eclipse' : '']
+      .filter(Boolean).join(' · ');
+    text.append(title, detail);
+    if (state.counts) {
+      const counts = document.createElement('small'); counts.className = 'save-state-counts';
+      const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+      counts.textContent = [plural(state.counts.shines, 'Shine', 'Shines'), plural(state.counts.blueCoins, 'blue coin', 'blue coins'),
+        plural(state.counts.coins, 'coin', 'coins'), plural(state.counts.lives, 'life', 'lives')].join(' · ');
+      text.append(counts);
+    }
+    const actions = document.createElement('span'); actions.className = 'binding-actions';
+    const button = (label, onClick) => {
+      const item = document.createElement('button'); item.className = 'subtle'; item.textContent = label;
+      item.addEventListener('click', onClick); return item;
+    };
+    actions.append(button('Show file', () => window.sms.showSaveState(state.name).catch(showError)),
+      button('Delete', async () => {
+        try { if (!(await window.sms.deleteSaveState(state.name)).cancelled) await loadSaveStates(); }
+        catch (error) { showError(error); }
+      }));
+    row.append(picture, text, actions);
+    return row;
+  }));
+}
+
+async function loadSaveStates() {
+  try { renderSaveStates(await window.sms.saveStates()); }
+  catch (error) { $('save-state-result').textContent = error.message || String(error); }
+}
+
+$('import-save-state').addEventListener('click', async () => {
+  $('save-state-result').textContent = '';
+  try {
+    const result = await window.sms.importSaveState();
+    if (!result.cancelled) $('save-state-result').textContent = `Imported ${result.imported} save state${result.imported === 1 ? '' : 's'}.`;
+    await loadSaveStates();
+  } catch (error) { $('save-state-result').textContent = error.message || String(error); }
+});
+$('open-save-states').addEventListener('click', () => window.sms.openSaveStates().catch(showError));
 for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode', 'updateChannel', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'fsrMode'])
   $(key).addEventListener('change', saveSettings);
 $('volume').addEventListener('input', renderVolume);

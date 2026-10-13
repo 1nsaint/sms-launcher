@@ -1,16 +1,19 @@
 'use strict';
 // Button prompts: the images the game draws for the button glyphs in its text
 // (platform gx_prompts.cpp in the game). For each style the launcher draws one
-// strip of eight 64x64 icons, in the order A B X Y Z L R C-stick, saved as
+// strip of 64x64 icons, in the order A B X Y Z L R C-stick, then the one or two
+// keys or buttons of Save a state (the pause menu's save state hint), saved as
 // <style>.png in the folder named by SMS_BUTTON_PROMPT_DIR. Each icon shows what
-// that GameCube button is bound to (src/bindings.js), so a remapped key or
-// controller button shows as the player set it.
+// that button is bound to (src/bindings.js), so a remapped key or controller
+// button shows as the player set it.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./bindings'));
   else root.SmsPrompts = factory(root.SmsBindings);
 })(typeof self !== 'undefined' ? self : this, bindings => {
   const CELL = 64;
-  const GLYPHS = ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'CSTICK'];
+  const GLYPHS = ['A', 'B', 'X', 'Y', 'Z', 'L', 'R', 'CSTICK', 'SAVE_STATE_1', 'SAVE_STATE_2'];
+  // The GameCube buttons, which the game's text shows; the rest are the save state hint's.
+  const BUTTON_GLYPHS = 8;
   // The choices for the setting; gamecube keeps the game's own glyphs and auto
   // follows the device in use (keyboard and mouse, or a controller). The others
   // always show that style, whatever is plugged in.
@@ -65,9 +68,30 @@
   };
   function keyLabel(key) { return KEY_LABELS[key] || key.replace(/^KP_/, 'Num'); }
 
+  // A controller button as that style shows it.
+  function padIcon(style, pad) {
+    if (FACE[style][pad]) return { kind: 'face', ...FACE[style][pad] };
+    if (DPAD[pad]) return { kind: 'dpad', direction: DPAD[pad] };
+    const text = OTHER[style][pad] || bindings.padLabel(pad);
+    if (/^(LB|RB|L1|R1)$/.test(text)) return { kind: 'shoulder', text };
+    if (/^(LT|RT|L2|R2)$/.test(text)) return { kind: 'trigger', text };
+    return { kind: 'pill', text };
+  }
+
+  // One key or button of Save a state's first binding, which may be two held together.
+  function saveStateIcon(style, part, keyBindings, padBindings) {
+    if (style === 'keyboard') {
+      const key = (bindings.keysFor(keyBindings, 'SAVE_STATE')[0] || '').split('+')[part];
+      return key ? { kind: 'key', text: keyLabel(key) } : { kind: 'empty' };
+    }
+    const pad = (bindings.padsFor(padBindings, 'SAVE_STATE')[0] || '').split('+')[part];
+    return pad ? padIcon(style, pad) : { kind: 'empty' };
+  }
+
   // What to draw for one glyph: a key cap, a mouse, a controller button, the
   // right stick, or (nothing bound) the GameCube letter greyed out.
   function icon(style, glyph, keyBindings, padBindings, options = {}) {
+    if (glyph.startsWith('SAVE_STATE_')) return saveStateIcon(style, Number(glyph.slice(-1)) - 1, keyBindings, padBindings);
     if (style === 'keyboard') {
       if (glyph === 'CSTICK') {
         if (options.mouseCamera) return { kind: 'mouse' };
@@ -81,12 +105,7 @@
     if (glyph === 'CSTICK') return { kind: 'stick', text: style === 'xbox' ? 'RS' : 'R' };
     const pad = bindings.padsFor(padBindings, glyph)[0];
     if (!pad) return { kind: 'none', text: glyph };
-    if (FACE[style][pad]) return { kind: 'face', ...FACE[style][pad] };
-    if (DPAD[pad]) return { kind: 'dpad', direction: DPAD[pad] };
-    const text = OTHER[style][pad] || bindings.padLabel(pad);
-    if (/^(LB|RB|L1|R1)$/.test(text)) return { kind: 'shoulder', text };
-    if (/^(LT|RT|L2|R2)$/.test(text)) return { kind: 'trigger', text };
-    return { kind: 'pill', text };
+    return padIcon(style, pad);
   }
 
   function icons(style, keyBindings, padBindings, options) {
@@ -180,6 +199,8 @@
       roundRect(ctx, x + 9, 10, CELL - 18, CELL - 24, 6); ctx.fillStyle = '#ffffff'; ctx.fill();
       label(ctx, item.text, cx, 29, item.text.length > 2 ? 22 : 30, CELL - 16, '#1b1f24');
       break;
+    case 'empty':
+      break;
     case 'mouse':
       roundRect(ctx, x + 16, 4, 32, 56, 16); outlined(ctx, '#f2f4f6', '#1b1f24');
       ctx.beginPath(); ctx.moveTo(cx, 6); ctx.lineTo(cx, 24); ctx.moveTo(x + 17, 24); ctx.lineTo(x + 47, 24);
@@ -192,15 +213,15 @@
     ctx.restore();
   }
 
-  // One style's strip of icons on a new canvas (document.createElement).
-  function drawStrip(doc, style, keyBindings, padBindings, options) {
+  // One style's strip of icons on a new canvas (document.createElement): all of them, or the first count.
+  function drawStrip(doc, style, keyBindings, padBindings, options, count = GLYPHS.length) {
     const canvas = doc.createElement('canvas');
-    canvas.width = CELL * GLYPHS.length;
+    canvas.width = CELL * count;
     canvas.height = CELL;
     const ctx = canvas.getContext('2d');
-    icons(style, keyBindings, padBindings, options).forEach((item, index) => drawIcon(ctx, item, index * CELL));
+    icons(style, keyBindings, padBindings, options).slice(0, count).forEach((item, index) => drawIcon(ctx, item, index * CELL));
     return canvas;
   }
 
-  return { CELL, GLYPHS, STYLES, PAD_STYLES, DRAWN, normalizeStyle, normalizePad, keyLabel, icon, icons, drawStrip };
+  return { CELL, GLYPHS, BUTTON_GLYPHS, STYLES, PAD_STYLES, DRAWN, normalizeStyle, normalizePad, keyLabel, icon, icons, drawStrip };
 });

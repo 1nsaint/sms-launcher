@@ -2,8 +2,9 @@
 // Keyboard and controller bindings for the game (platform/pad/pad.cpp reads
 // them from the file named by SMS_BINDINGS: one `CONTROL = KEY ... PAD_...`
 // line per control; its keys replace the control's keys and its PAD_ buttons
-// replace its controller buttons). The launcher keeps only the controls a
-// player changed; everything else stays the game's default.
+// replace its controller buttons; PAD_LB+PAD_LT is two buttons held together).
+// The launcher keeps only the controls a player changed; everything else stays
+// the game's default.
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.SmsBindings = factory();
@@ -20,7 +21,9 @@
     { id: 'DPAD_UP', label: 'D-pad up' }, { id: 'DPAD_DOWN', label: 'D-pad down' },
     { id: 'DPAD_LEFT', label: 'D-pad left' }, { id: 'DPAD_RIGHT', label: 'D-pad right' },
     { id: 'QUIT', label: 'Quit the game' },
-    { id: 'L_SOFT', label: 'Soft L press' }, { id: 'R_SOFT', label: 'Soft R press' }
+    { id: 'L_SOFT', label: 'Soft L press' }, { id: 'R_SOFT', label: 'Soft R press' },
+    // The port's save states (platform/savestate in the game), not GameCube buttons.
+    { id: 'SAVE_STATE', label: 'Save a state' }, { id: 'LOAD_STATE', label: 'Load the newest state' }
   ];
   // The game's built-in defaults (kDefaultBindings in platform/pad/pad.cpp).
   const DEFAULTS = {
@@ -30,13 +33,15 @@
     STICK_RIGHT: ['RIGHT', 'D'], CSTICK_UP: ['I'], CSTICK_DOWN: ['K'], CSTICK_LEFT: ['J'], CSTICK_RIGHT: ['L'],
     HALF_TILT: ['LCTRL'], QUIT: ['ESCAPE'],
     // a light L or R press without the click (L_SOFT / R_SOFT in pad.cpp); unbound by default
-    L_SOFT: [], R_SOFT: []
+    L_SOFT: [], R_SOFT: [],
+    SAVE_STATE: ['F5'], LOAD_STATE: ['F6']
   };
   // KeyboardEvent.code to the key names the game knows (kKeys in pad.cpp).
   const CODES = {
     Enter: 'ENTER', Escape: 'ESCAPE', Backspace: 'BACKSPACE', Tab: 'TAB', Space: 'SPACE', Minus: 'MINUS',
     Equal: 'EQUALS', BracketLeft: 'LBRACKET', BracketRight: 'RBRACKET', Semicolon: 'SEMICOLON',
     Quote: 'APOSTROPHE', Comma: 'COMMA', Period: 'PERIOD', Slash: 'SLASH', F1: 'F1', F2: 'F2', F3: 'F3', F4: 'F4',
+    F5: 'F5', F6: 'F6', F7: 'F7', F8: 'F8', F9: 'F9', F10: 'F10', F11: 'F11', F12: 'F12',
     ArrowUp: 'UP', ArrowDown: 'DOWN', ArrowLeft: 'LEFT', ArrowRight: 'RIGHT', NumpadDivide: 'KP_DIVIDE',
     NumpadMultiply: 'KP_MULTIPLY', NumpadSubtract: 'KP_MINUS', NumpadAdd: 'KP_PLUS', NumpadEnter: 'KP_ENTER',
     ControlLeft: 'LCTRL', ShiftLeft: 'LSHIFT', AltLeft: 'LALT', ControlRight: 'RCTRL', ShiftRight: 'RSHIFT',
@@ -62,12 +67,22 @@
   const PAD_DEFAULTS = {
     A: ['PAD_A'], B: ['PAD_B'], X: ['PAD_X'], Y: ['PAD_Y'], Z: ['PAD_RB'], L: ['PAD_LT'], R: ['PAD_RT'],
     START: ['PAD_START'], DPAD_UP: ['PAD_DPUP'], DPAD_DOWN: ['PAD_DPDOWN'], DPAD_LEFT: ['PAD_DPLEFT'],
-    DPAD_RIGHT: ['PAD_DPRIGHT']
+    DPAD_RIGHT: ['PAD_DPRIGHT'], SAVE_STATE: ['PAD_LB+PAD_RB']
   };
 
   // The controller button for a standard-mapping Gamepad API button index, or null.
   function padFromIndex(index) { return PAD_BUTTONS[index]?.id || null; }
-  function padLabel(id) { return PAD_BUTTONS.find(button => button.id === id)?.label || id; }
+  // One button ("LB"), or two held together ("LB + LT").
+  function padLabel(id) {
+    return id.split('+').map(part => PAD_BUTTONS.find(button => button.id === part)?.label || part).join(' + ');
+  }
+  // A button, or two different buttons held together (FIRST+SECOND), as the game reads them.
+  function validPad(item) {
+    const parts = item.split('+');
+    return parts.length <= 2 && parts.every(part => PADS.has(part)) && new Set(parts).size === parts.length;
+  }
+  // Two buttons as one binding, in the order they were pressed.
+  function padCombo(first, second) { return first === second ? first : `${first}+${second}`; }
 
   // The key name for a KeyboardEvent.code, or null for a key the game cannot read.
   function keyFromCode(code) { return CODES[code] || null; }
@@ -92,7 +107,7 @@
     if (!input || typeof input !== 'object') return result;
     for (const { id } of CONTROLS) {
       if (!Array.isArray(input[id])) continue;
-      const pads = [...new Set(input[id].map(String).filter(pad => PADS.has(pad)))].slice(0, MAX_PADS);
+      const pads = [...new Set(input[id].map(String).filter(validPad))].slice(0, MAX_PADS);
       if (pads.length && pads.join(' ') !== (PAD_DEFAULTS[id] || []).join(' ')) result[id] = pads;
     }
     return result;
@@ -111,5 +126,5 @@
   }
 
   return { CONTROLS, DEFAULTS, PAD_BUTTONS, PAD_DEFAULTS, keyFromCode, normalize, keysFor, fileText,
-    padFromIndex, padLabel, normalizePads, padsFor };
+    padFromIndex, padLabel, padCombo, normalizePads, padsFor };
 });
