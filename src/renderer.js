@@ -980,7 +980,7 @@ $('changelog-show-all').addEventListener('click', () => renderChangelog(changelo
 $('open-changelog').addEventListener('click', showChangelog);
 $('changelog-page').addEventListener('click', () => window.sms.openChangelogPage().catch(error => setMessage(error.message)));
 $('play').addEventListener('click', () => {
-  if (wizardStep === 0) runWizardAction('launchGame');
+  if (wizardStep === 0) { if (!offerSteam()) runWizardAction('launchGame'); }
   else if (wizardStep === 1) {
     if (current.platform.id === 'macos' && !current.tools.appleReady) { showMacHelp(); return; }
     if (current.repoReady && current.tools.ready) { wizardStep = 2; refresh(current); }
@@ -1004,21 +1004,85 @@ async function importDolphinSave(file) {
   } catch (error) { resultText.textContent = error.message || String(error); await sync(); }
 }
 $('import-dolphin-save').addEventListener('click', () => importDolphinSave());
-// Add to Steam, under the Discord banner: shown while the launcher can add
-// itself to Steam and is not in its library yet.
+// Steam, under the Discord banner: Add to Steam while the launcher can add
+// itself and is not in the library yet, then a tick once it is there. Selecting
+// the tick updates the shortcut's artwork and Skip Launcher. A shortcut made by
+// hand without --no-sandbox, which won't open in Game Mode, shows a fix instead.
 const STEAM_DETAIL = $('steam-banner-detail').textContent;
-async function refreshSteamBanner() {
-  try {
-    const status = await window.sms.steamStatus();
-    $('add-to-steam').hidden = !status.available || status.inSteam;
-  } catch { $('add-to-steam').hidden = true; }
+let steam = {};
+function steamBannerText() {
+  if (steam.needsFix) return { title: 'Fix for Game Mode', mark: '!', detail: steam.available
+    ? "Steam's shortcut is missing --no-sandbox. Select to fix it" : 'In Steam, add --no-sandbox to its launch options' };
+  if (steam.inSteam) return { title: 'In your Steam library', mark: '✓', detail: steam.available
+    ? 'Select to update its artwork or Skip Launcher' : 'Play from Steam, Big Picture or Game Mode' };
+  return { title: 'Add to Steam', mark: '+', detail: STEAM_DETAIL };
 }
-// The banner asks first whether Steam should skip the launcher (`--play`).
-$('add-to-steam').addEventListener('click', () => $('steam-add').showModal());
+function renderSteamBanner() {
+  const banner = $('add-to-steam'), text = steamBannerText();
+  banner.hidden = !steam.available && !steam.inSteam;
+  banner.classList.toggle('in-steam', Boolean(steam.inSteam) && !steam.needsFix);
+  banner.classList.toggle('needs-fix', Boolean(steam.needsFix));
+  banner.disabled = !steam.available;
+  $('steam-banner-title').textContent = text.title;
+  $('steam-banner-detail').textContent = text.detail;
+  $('steam-banner-mark').textContent = text.mark;
+  banner.setAttribute('aria-label', `${text.title}. ${text.detail}`);
+}
+async function refreshSteamBanner() {
+  try { steam = await window.sms.steamStatus() || {}; } catch { steam = {}; }
+  renderSteamBanner();
+}
+// One Steam dialog: from the banner (add, or update once in Steam), or offered
+// once by Play on SteamOS, which then plays whatever the player chooses.
+const STEAM_MODES = {
+  add: { kicker: 'Add to Steam', intro: 'Adds Super Mario Sunshine to your Steam library, with artwork.', cancel: 'Cancel', confirm: 'Add to Steam' },
+  update: { kicker: 'In your Steam library', intro: "It's already in Steam. Update it to refresh its artwork, or to turn Skip Launcher on or off.",
+    cancel: 'Cancel', confirm: 'Update in Steam' },
+  offer: { kicker: 'Play from Steam?', intro: "Add Super Mario Sunshine to your Steam library and start it from Game Mode like your other games. We'll only ask once: the Add to Steam banner on the home screen does it any time.",
+    cancel: 'Not now', confirm: 'Add to Steam & play' },
+  fix: { kicker: 'Fix for Game Mode', intro: "Super Mario Sunshine is in your Steam library, but its shortcut is missing the --no-sandbox launch option, so it won't open in Game Mode. Let the launcher fix it: it keeps the shortcut's play time, collections and controller layout, and adds the artwork.",
+    cancel: 'Not now', confirm: 'Fix shortcut' }
+};
+let playAfterSteam = false;
+function openSteamDialog(mode) {
+  const text = STEAM_MODES[mode];
+  $('steam-add-kicker').textContent = text.kicker;
+  $('steam-add-intro').textContent = text.intro;
+  $('steam-add-cancel').textContent = text.cancel;
+  $('steam-add-confirm').textContent = text.confirm;
+  $('steam-skip-launcher').checked = ['update', 'fix'].includes(mode) && Boolean(steam.skipLauncher);
+  playAfterSteam = mode === 'offer';
+  $('steam-add').showModal();
+}
+// Not now, Esc or × after Play's offer: play as the player asked.
+$('steam-add').addEventListener('close', () => {
+  if (!playAfterSteam) return;
+  playAfterSteam = false;
+  runWizardAction('launchGame');
+});
+// Play's offer, on SteamOS while the launcher isn't in Steam yet. True when shown.
+function offerSteam() {
+  if (!steam.offer || current?.active) return false;
+  steam.offer = false;
+  window.sms.steamOffered('play').catch(() => {});
+  openSteamDialog('offer');
+  return true;
+}
+// Opening the launcher offers once to fix a shortcut without --no-sandbox.
+function offerSteamFix() {
+  if (!steam.offerFix || current?.active || [...document.querySelectorAll('.launcher-modal')].some(dialog => dialog.open)) return;
+  steam.offerFix = false;
+  window.sms.steamOffered('fix').catch(() => {});
+  openSteamDialog('fix');
+}
+$('add-to-steam').addEventListener('click', () => openSteamDialog(steam.needsFix ? 'fix' : steam.inSteam ? 'update' : 'add'));
 $('steam-add-confirm').addEventListener('click', async () => {
+  const play = playAfterSteam, fixing = Boolean(steam.needsFix);
+  playAfterSteam = false;
   $('steam-add').close();
   $('add-to-steam').disabled = true;
-  $('steam-banner-detail').textContent = 'Adding to Steam…';
+  $('steam-banner-detail').textContent = steam.needsFix ? 'Fixing in Steam…' : steam.inSteam ? 'Updating in Steam…' : 'Adding to Steam…';
+  let failed = false;
   try {
     const done = await window.sms.addToSteam({ play: $('steam-skip-launcher').checked });
     if (done.cancelled) setMessage('Not added. Steam needs to close for a moment to add the launcher.');
@@ -1026,17 +1090,22 @@ $('steam-add-confirm').addEventListener('click', async () => {
       const art = done.artwork === done.total ? ' with its artwork'
         : done.artwork ? ` with ${done.artwork} of ${done.total} artwork images (SteamGridDB didn't send the rest)` : " without artwork (SteamGridDB couldn't be reached)";
       const skip = done.play ? ' It starts the game straight away; open the launcher itself now and then for launcher updates.' : '';
-      setMessage(`${done.added ? 'Added' : 'Updated'} "${done.name}" in your Steam library${art}. ${done.reopened ? 'Steam is opening again.' : 'Open Steam to find it.'}${skip}`);
+      setMessage(fixing ? `Fixed "${done.name}" in Steam${art}: it opens in Game Mode now. ${done.reopened ? 'Steam is opening again.' : 'Open Steam to find it.'}${skip}`
+        : `${done.added ? 'Added' : 'Updated'} "${done.name}" in your Steam library${art}. ${done.reopened ? 'Steam is opening again.' : 'Open Steam to find it.'}${skip}`);
     }
-  } catch (error) { showError(error); }
+  } catch (error) { failed = true; showError(error); }
   finally {
-    $('add-to-steam').disabled = false;
-    $('steam-banner-detail').textContent = STEAM_DETAIL;
     await refreshSteamBanner();
     await sync();
   }
+  // Play's offer plays afterwards, keeping the Steam message in view; an error stays to be read.
+  if (play && !failed) {
+    const shown = $('message-text').textContent;
+    runWizardAction('launchGame');
+    if (shown) setMessage(shown);
+  }
 });
-refreshSteamBanner();
+refreshSteamBanner().then(offerSteamFix);
 const dolphinDrop = $('dolphin-save-drop');
 for (const type of ['dragenter', 'dragover']) dolphinDrop.addEventListener(type, event => {
   event.preventDefault();

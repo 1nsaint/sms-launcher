@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const https = require('node:https');
 const crypto = require('node:crypto');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 
 const assets = require('./tool-assets.json');
 const TOOLSET = assets.toolset;
@@ -249,6 +249,46 @@ function assetFor(platform = process.platform, arch = process.arch) {
   return source;
 }
 
+// Runs the system tar (Windows' bsdtar) verbosely: it names each file as it
+// goes, which drives the same "N files" progress as the JavaScript path. A tar
+// that names no file for stallMs is stopped, so a stuck extraction ends with an
+// explanation instead of staying on "Unpacking build tools…" for good.
+function unpackNative(tarPath, args, progress, { stallMs = 5 * 60 * 1000 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(tarPath, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    const recent = [];
+    let files = 0, pending = '', stalled = false, timer = null;
+    const arm = () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { stalled = true; child.kill(); }, stallMs);
+    };
+    const read = chunk => {
+      const lines = (pending + chunk.toString()).split(/\r?\n/);
+      pending = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        if (recent.push(line.trim()) > 20) recent.shift();
+        if (++files % 1000 === 0) progress(null, `Unpacking build tools… ${files.toLocaleString()} files`);
+      }
+      arm();
+    };
+    child.stdout.on('data', read);
+    child.stderr.on('data', read);
+    arm();
+    child.on('error', error => { clearTimeout(timer); reject(error); });
+    child.on('close', (code, signal) => {
+      clearTimeout(timer);
+      const waited = stallMs >= 60000 ? `${Math.round(stallMs / 60000)} min` : `${Math.round(stallMs / 1000)} s`;
+      if (stalled) return reject(new Error(`Unpacking the build tools stopped: tar named no new file for ${waited} ` +
+        `(after ${files.toLocaleString()} files). Antivirus scanning or a long folder path can cause this; try again, ` +
+        'or move the launcher to a short folder such as C:\\Games.' + (recent.length ? ` Last file: ${recent[recent.length - 1]}` : '')));
+      if (code !== 0 || signal) return reject(new Error(`Unpacking the build tools failed (tar ${signal || `exit code ${code}`}).` +
+        (recent.length ? ` ${recent.slice(-5).join(' | ')}` : '')));
+      resolve(files);
+    });
+  });
+}
+
 async function prepare(userData, { platform = process.platform, run, progress = () => {},
   forcePrivate = false, source = null, archiveFile = null, archives = false } = {}) {
   if (!['linux', 'win32', 'darwin'].includes(platform)) throw new Error('This operating system is not supported.');
@@ -277,9 +317,9 @@ async function prepare(userData, { platform = process.platform, run, progress = 
     const top = platform === 'win32' ? 'msys64' : 'env';
     const nativeTar = platform === 'win32'
       ? path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe') : null;
-    if (nativeTar && typeof run === 'function' && fs.existsSync(nativeTar) && commandWorks(nativeTar, ['--version'])) {
+    if (nativeTar && fs.existsSync(nativeTar) && commandWorks(nativeTar, ['--version'])) {
       // Windows includes bsdtar; its native extraction avoids slow per-file JS filesystem work.
-      await run(nativeTar, ['-xzf', archive, '-C', staging, top], {}, 'Unpack build tools');
+      await unpackNative(nativeTar, ['-xvzf', archive, '-C', staging, top], progress);
     } else {
       let entries = 0;
       await require('tar').x({ file: archive, cwd: staging, strict: true,
@@ -336,4 +376,4 @@ async function prepare(userData, { platform = process.platform, run, progress = 
 }
 
 module.exports = { TOOLSET, toolsetFor, platformId, rootFor, legacyRootFor, privateReady, systemReady, status, environment, environmentAtRoot, check,
-  fetchVerified, hashFile, assetFor, prepare };
+  fetchVerified, hashFile, assetFor, prepare, unpackNative };

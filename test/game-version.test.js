@@ -102,6 +102,20 @@ test('new source snapshots share optional downloads and keep user settings in th
   assert.equal(fs.readFileSync(path.join(root, 'settings.txt'), 'utf8'), 'save_dir=./custom-saves');
 });
 
+test('a mod folder link left pointing at a removed version is replaced, not tripped over', t => {
+  const { root } = fixture(t);
+  const next = path.join(root, 'next');
+  const gone = path.join(root, 'removed-version', 'mods', 'textures');
+  fs.mkdirSync(path.join(next, 'mods'), { recursive: true });
+  fs.mkdirSync(gone, { recursive: true });
+  fs.symlinkSync(gone, path.join(next, 'mods', 'textures'), process.platform === 'win32' ? 'junction' : 'dir');
+  fs.rmSync(path.join(root, 'removed-version'), { recursive: true, force: true });
+  fs.mkdirSync(path.join(root, 'mods', 'textures'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'mods', 'textures', 'tex1_test.png'), 'textures');
+  game.carryUserFiles(root, next);
+  assert.equal(fs.readFileSync(path.join(next, 'mods', 'textures', 'tex1_test.png'), 'utf8'), 'textures');
+});
+
 test('old game versions are removed, keeping the current and previous ones and HD packs they link to', async t => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sms prune-'));
   t.after(() => fs.rmSync(home, { recursive: true, force: true }));

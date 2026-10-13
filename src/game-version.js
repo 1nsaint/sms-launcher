@@ -147,7 +147,15 @@ function carryUserFiles(previous, next) {
   for (const folder of USER_FOLDERS) {
     const origin = path.join(previous, 'mods', folder);
     const target = path.join(next, 'mods', folder);
-    if (!fs.existsSync(origin) || fs.existsSync(target)) continue;
+    if (!fs.existsSync(origin)) continue;
+    const existing = fs.lstatSync(target, { throwIfNoEntry: false });
+    if (existing) {
+      // A link from an older update can point at a version that has since been
+      // removed. existsSync follows it and says there is nothing there, but
+      // creating the new link over it fails (EISDIR on Windows), so replace it.
+      if (!existing.isSymbolicLink() || fs.existsSync(target)) continue;
+      fs.unlinkSync(target);
+    }
     // A Windows directory junction requires no administrator/developer mode.
     fs.symlinkSync(fs.realpathSync(origin), target, process.platform === 'win32' ? 'junction' : 'dir');
   }

@@ -38,6 +38,7 @@
     "directories": {
       "output": "dist"
     },
+    "afterPack": "scripts/after-pack.js",
     "toolsets": {
       "appimage": "1.0.3"
     },
