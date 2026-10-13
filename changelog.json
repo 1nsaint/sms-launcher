@@ -30,7 +30,7 @@
       "Fixed the game using up all of the computer's memory within seconds of starting, before the title screen, when its shader cache had been damaged (for example by two games running at once); a damaged cache now starts over.",
       "Hid the small grey placeholder cubes floating among the rail boards in Bianco Hills' secret course, The Secret of the Dirty Lake.",
       "Fixed Borderless on some Windows PCs blanking the monitor at launch and every time you Alt-Tab back into the game, as exclusive fullscreen does.",
-      "Save states: in a level, L1 + R1 (LB + RB, or F5) saves the exact moment you're in. Pause and press them again to pick a state, with its picture, Shines and blue coins, and go back to it, with everything where it was; the pause menu shows the buttons at its top right. F6 loads the newest. States are files you can share; one from another version of the game takes you to the same level and spot."
+      "Save states: in a level, L1 + R1 (LB + RB, or F5) saves the exact moment you're in. Pause and press them again to pick one from a list beside its picture, with its Shines and blue coins, and the game fades back to that moment, with everything where it was; the pause menu shows the buttons at its top right. F6 loads the newest. States are files you can share; one from another version of the game takes you to the same level and spot."
     ]
   },
   "releases": [
