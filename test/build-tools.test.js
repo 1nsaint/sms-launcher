@@ -203,3 +203,42 @@ test('32-bit Linux target selects the private SDK without changing the host help
   assert.equal(root64.CXX, path.join(root, 'env', 'bin', 'g++'));
   assert.equal(root64.SMS_LINUX32_ROOT, undefined);
 });
+
+const posixOnly = { skip: process.platform === 'win32' && 'Uses POSIX shell scripts and the system tar.' };
+
+test('native unpacking counts the files tar names and reports progress', posixOnly, async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-native-unpack-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const source = path.join(dir, 'source', 'msys64');
+  fs.mkdirSync(source, { recursive: true });
+  for (let i = 0; i < 2500; i++) fs.writeFileSync(path.join(source, `f${i}`), '');
+  const archive = path.join(dir, 'tools.tar.gz');
+  await tar.c({ gzip: true, file: archive, cwd: path.join(dir, 'source') }, ['msys64']);
+  const staging = path.join(dir, 'staging');
+  fs.mkdirSync(staging);
+  const reports = [];
+  const files = await tools.unpackNative('tar', ['-xvzf', archive, '-C', staging, 'msys64'],
+    (percent, detail) => reports.push(detail));
+  assert.ok(files >= 2500, `${files} files named`);
+  assert.ok(reports.includes(`Unpacking build tools… ${(2000).toLocaleString()} files`), reports.join('\n'));
+  assert.ok(fs.existsSync(path.join(staging, 'msys64', 'f2499')));
+});
+
+test('native unpacking stops a tar that names no file for the stall time', posixOnly, async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-native-stall-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const fake = path.join(dir, 'tar');
+  fs.writeFileSync(fake, '#!/bin/sh\necho msys64/first\nexec sleep 30\n', { mode: 0o755 });
+  const started = Date.now();
+  await assert.rejects(tools.unpackNative(fake, [], () => {}, { stallMs: 1000 }),
+    /stopped: tar named no new file for 1 s \(after 1 files\).*Last file: msys64\/first/);
+  assert.ok(Date.now() - started < 10000, 'the stalled tar was stopped');
+});
+
+test('native unpacking reports what a failing tar said', posixOnly, async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-native-fail-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const fake = path.join(dir, 'tar');
+  fs.writeFileSync(fake, '#!/bin/sh\necho "tar: msys64/x: Path too long" >&2\nexit 2\n', { mode: 0o755 });
+  await assert.rejects(tools.unpackNative(fake, [], () => {}), /failed \(tar exit code 2\)\. tar: msys64\/x: Path too long/);
+});
