@@ -19,7 +19,9 @@
       "Fixed a possible crash when Eclipse's Fire Petey breathes fire.",
       "HD cutscene setup now names the movie and says the disc image is damaged or trimmed, instead of only \"Expected THP 1.0 or 1.1\".",
       "Fixed F10 not showing the mouse cursor in borderless or fullscreen when it releases mouse look.",
-      "Fixed Eclipse getting slower the longer you played, until you restarted."
+      "Fixed Eclipse getting slower the longer you played, until you restarted.",
+      "Fixed Shadow Mario's theme blaring for a moment at GO! in Eclipse's Shadow Mario episodes.",
+      "Fixed the goop bubbles drawing as opaque domes in flat colour quadrants (the Airstrip, worst in widescreen); they're translucent again."
     ]
   },
   "releases": [
