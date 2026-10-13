@@ -136,6 +136,8 @@ function normalizeSettings(input = {}, platform = process.platform) {
     shareUsage: input.shareUsage !== false,
     // Show what you are playing on your Discord profile while the game runs.
     discordPresence: input.discordPresence !== false,
+    // The launcher's own look: dark dialogs instead of light ones, off unless chosen.
+    darkMode: Boolean(input.darkMode),
     // Keys the player changed in Settings → Controls; the rest stay the game's defaults.
     keyBindings: bindings.normalize(input.keyBindings),
     // Controller buttons the player changed in Settings → Controls.

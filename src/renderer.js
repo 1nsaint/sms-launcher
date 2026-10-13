@@ -15,35 +15,29 @@ function closeModal() {
     if (dialog.open) dialog.close();
 }
 
-function showSettingsView(name) {
-  $('settings-view').hidden = name !== 'settings';
-  $('maintenance-view').hidden = name !== 'maintenance';
-  $('controls-view').hidden = name !== 'controls';
-  $('page-settings').setAttribute('aria-label', { settings: 'Game settings', maintenance: 'Manage game', controls: 'Controls' }[name]);
+// Settings is one dialog with a tab per section; it reopens on the last one shown.
+const settingsTabs = ['gameplay', 'display', 'graphics', 'controls', 'manage', 'saves', 'launcher'];
+let settingsTab = 'gameplay';
+function showSettingsTab(name) {
+  if (settingsTab === 'controls' && name !== 'controls') stopCapture();
+  settingsTab = name;
+  for (const tab of settingsTabs) {
+    $(`pane-${tab}`).hidden = tab !== name;
+    $(`tab-${tab}`).setAttribute('aria-selected', String(tab === name));
+    $(`tab-${tab}`).classList.toggle('active', tab === name);
+  }
+  $('settings-panes').scrollTop = 0;
+  if (name === 'controls') renderBindings();
+  if (name === 'launcher') loadUpdateChannels();
 }
+for (const tab of settingsTabs) $(`tab-${tab}`).addEventListener('click', () => showSettingsTab(tab));
+$('page-settings').addEventListener('close', () => stopCapture());
 
 $('settings-cog').addEventListener('click', () => {
-  showSettingsView('settings');
+  showSettingsTab(settingsTab);
   $('page-settings').showModal();
+  $(`tab-${settingsTab}`).focus();
   loadDisplayInfo();
-});
-$('open-maintenance').addEventListener('click', () => {
-  showSettingsView('maintenance');
-  $('back-to-settings').focus();
-});
-$('back-to-settings').addEventListener('click', () => {
-  showSettingsView('settings');
-  $('open-maintenance').focus();
-});
-$('open-controls').addEventListener('click', () => {
-  showSettingsView('controls');
-  renderBindings();
-  $('controls-back').focus();
-});
-$('controls-back').addEventListener('click', () => {
-  stopCapture();
-  showSettingsView('settings');
-  $('open-controls').focus();
 });
 
 // --- Controls: key and controller bindings (src/bindings.js). keyBindings and padBindings hold only the
@@ -173,7 +167,7 @@ function renderPrompts() {
 }
 
 function renderBindings() {
-  if (!globalThis.SmsBindings || $('controls-view').hidden) return;
+  if (!globalThis.SmsBindings || $('pane-controls').hidden) return;
   const controller = bindingMode === 'controller';
   for (const button of document.querySelectorAll('[data-binding-mode]'))
     button.setAttribute('aria-pressed', String(button.dataset.bindingMode === bindingMode));
@@ -551,7 +545,8 @@ function refresh(data) {
     $(key).value = String(config.settings[key]);
   renderVolume();
   renderRanges();
-  for (const key of ['fullscreen', 'invertCameraX', 'invertCameraY', 'freeCamera', 'mouseCamera', 'skipMovies', 'heatHaze', 'overlay', 'fxaa', 'hudEdges', 'textures', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence']) $(key).checked = config.settings[key];
+  for (const key of ['fullscreen', 'invertCameraX', 'invertCameraY', 'freeCamera', 'mouseCamera', 'skipMovies', 'heatHaze', 'overlay', 'fxaa', 'hudEdges', 'textures', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode']) $(key).checked = config.settings[key];
+  renderTheme();
   keyBindings = config.settings.keyBindings || {};
   padBindings = config.settings.padBindings || {};
   $('buttonPrompts').value = config.settings.buttonPrompts || 'gamecube';
@@ -574,7 +569,7 @@ function refresh(data) {
   $('update-channel-field').hidden = data.portable;
   $('update-channel-note').hidden = data.portable;
   renderGameSource(data);
-  for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'updateChannel', 'buttonPrompts', 'promptPad', 'graphicsPreset', 'fsrMode'])
+  for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode', 'updateChannel', 'buttonPrompts', 'promptPad', 'graphicsPreset', 'fsrMode'])
     $(key).disabled = Boolean(data.active);
   // Languages need a game version with language packs; Eclipse has its own text.
   $('language-note').textContent = data.repoReady && !data.languagesSupported ? 'Update the game to add languages.'
@@ -765,6 +760,9 @@ $('hdr-calibration-app').addEventListener('click', () => window.sms.openHdrCalib
 for (const key of ['hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'hdr', 'hdrCalibration'])
   $(key).addEventListener('input', () => renderHdr());
 
+function renderTheme() { $('shell').classList.toggle('dark', $('darkMode').checked); }
+$('darkMode').addEventListener('input', renderTheme);
+
 function renderVolume() { $('volume-value').textContent = `${$('volume').value}%`; }
 
 function renderRanges() {
@@ -816,7 +814,7 @@ function settingsValue() {
     presentFilter: $('presentFilter').value, fsrMode: $('fsrMode').value,
     invertCameraX: $('invertCameraX').checked, invertCameraY: $('invertCameraY').checked, hudEdges: $('hudEdges').checked, textures: $('textures').checked, cutscenes: $('cutscenes').checked,
     textureLoading: $('textureLoading').value, shaderWarmup: $('shaderWarmup').checked,
-    eclipse: $('eclipse').checked, autoUpdate: $('autoUpdate').checked, shareUsage: $('shareUsage').checked, discordPresence: $('discordPresence').checked, updateChannel: $('updateChannel').value,
+    eclipse: $('eclipse').checked, autoUpdate: $('autoUpdate').checked, shareUsage: $('shareUsage').checked, discordPresence: $('discordPresence').checked, darkMode: $('darkMode').checked, updateChannel: $('updateChannel').value,
     keyBindings, padBindings, softTrigger: Number($('softTrigger').value), buttonPrompts: $('buttonPrompts').value,
     promptPad: $('promptPad').value, graphicsPreset: $('graphicsPreset').value,
     hdr: $('hdr').checked, hdrCalibration: $('hdrCalibration').checked, hdrPaperWhite: Number($('hdrPaperWhite').value),
@@ -1055,12 +1053,11 @@ $('restore-saves').addEventListener('click', async () => {
   try { await window.sms.restoreSaves($('backup-list').value); await sync(); }
   catch (error) { showError(error); await sync(); }
 });
-for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'updateChannel', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'fsrMode'])
+for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode', 'updateChannel', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'fsrMode'])
   $(key).addEventListener('change', saveSettings);
 $('volume').addEventListener('input', renderVolume);
 for (const key of ['cameraSpeed', 'mouseSensitivity', 'sharpen', 'brightness']) $(key).addEventListener('input', renderRanges);
 for (const key of ['fullscreen', 'fullscreenMode', 'mouseCamera', 'presentFilter', 'textures', 'textureLoading']) $(key).addEventListener('input', () => renderDependents());
-$('open-maintenance').addEventListener('click', loadUpdateChannels);
 window.sms.onLog(appendLog);
 window.sms.onLogReset(resetLog);
 window.sms.onActivity(value => {
@@ -1120,27 +1117,23 @@ window.sms.onWindowState(renderWindowState);
 
 // --- Controller navigation (src/gamepad-nav.js).
 const openDialog = () => [...document.querySelectorAll('.launcher-modal[open]')].pop();
-const settingsViews = ['settings', 'controls', 'maintenance'];
-const settingsView = () => settingsViews.find(name => !$(`${name}-view`).hidden);
-// LB / RB step through Settings, Controls and Manage game with their own buttons.
-function stepSettingsView(step) {
+// LB / RB step through the Settings tabs.
+function stepSettingsTab(step) {
   if (!$('page-settings').open) return;
-  const target = settingsViews[settingsViews.indexOf(settingsView()) + step];
+  const target = settingsTabs[settingsTabs.indexOf(settingsTab) + step];
   if (!target) return;
-  if (settingsView() === 'controls') $('controls-back').click();
-  if (settingsView() === 'maintenance') $('back-to-settings').click();
-  if (target !== 'settings') $(target === 'controls' ? 'open-controls' : 'open-maintenance').click();
+  showSettingsTab(target);
+  $(`tab-${target}`).focus();
 }
 function gamepadBack() {
   const dialog = openDialog();
-  if (dialog?.id === 'page-settings' && settingsView() !== 'settings') stepSettingsView(-settingsViews.indexOf(settingsView()));
-  else if (dialog) dialog.close();
+  if (dialog) dialog.close();
   else if (consoleOpen) setConsoleOpen(false);
   else [...document.querySelectorAll('[data-setup-back]')].find(button => !button.disabled && button.offsetParent)?.click();
 }
 window.smsGamepadNav.start({
   document, window,
-  regions: '.switch, .quick-control, .field',
+  regions: '.switch, .field',
   defaultFocus: () => [$('play'), $('settings-cog')],
   // The game reads the same controller, and Controls waits for a button to bind.
   paused: () => current?.active?.label === 'Play Super Mario Sunshine' || Boolean(capture),
@@ -1148,8 +1141,8 @@ window.smsGamepadNav.start({
     back: gamepadBack,
     menu: () => openDialog() ? closeModal() : $('settings-cog').click(),
     view: () => consoleOpen ? setConsoleOpen(false) : showActivityLog(),
-    previous: () => stepSettingsView(-1),
-    next: () => stepSettingsView(1)
+    previous: () => stepSettingsTab(-1),
+    next: () => stepSettingsTab(1)
   }
 });
 window.sms.windowState().then(renderWindowState).catch(showError);
