@@ -66,6 +66,7 @@ test('offers only platform-supported architectures and keeps builds separate', (
   assert.match(port.binaryPath('/port', settings, 'linux'), /linux-64-eclipse[\\/]sms$/);
   assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_DISC_IMAGE, '/my/disc.iso');
   assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_MOD, 'none');
+  assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_STANDALONE, '0');
   assert.equal(settings.fullscreen, false);
   assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_FULLSCREEN, '0');
   assert.equal(port.buildEnvironment(port.normalizeSettings({ fullscreen: true }), '/my/disc.iso', '/port').SMS_FULLSCREEN, '1');
