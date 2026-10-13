@@ -25,8 +25,12 @@ function channelLabel(channel) {
 }
 
 // GitHub's release list -> the channels a player can choose, Stable first.
+// null when the list couldn't be read (offline, or GitHub's hourly limit for
+// anonymous requests): Beta always exists, so it is still offered.
 function channelsFromReleases(releases) {
   const channels = [{ id: 'stable', label: 'Stable', detail: 'Released versions (recommended)' }];
+  if (!Array.isArray(releases))
+    return channels.concat({ id: 'beta', label: 'Beta', detail: 'Newest launcher and game (pull request previews could not be listed)' });
   const previews = [];
   for (const release of Array.isArray(releases) ? releases : []) {
     if (!release || release.draft || !release.prerelease || !CHANNEL.test(release.tag_name) || release.tag_name === 'stable') continue;
