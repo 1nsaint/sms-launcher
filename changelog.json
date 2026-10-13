@@ -25,7 +25,10 @@
       "Fixed F10 not showing the mouse cursor in borderless or fullscreen when it releases mouse look.",
       "Fixed Eclipse getting slower the longer you played, until you restarted.",
       "Fixed Shadow Mario's theme blaring for a moment at GO! in Eclipse's Shadow Mario episodes.",
-      "Fixed the goop bubbles drawing as opaque domes in flat colour quadrants (the Airstrip, worst in widescreen); they're translucent again."
+      "Fixed the goop bubbles drawing as opaque domes in flat colour quadrants (the Airstrip, worst in widescreen); they're translucent again.",
+      "Fixed the game using up all of the computer's memory within seconds of starting, before the title screen, when its shader cache had been damaged (for example by two games running at once); a damaged cache now starts over.",
+      "Hid the small grey placeholder cubes floating among the rail boards in Bianco Hills' secret course, The Secret of the Dirty Lake.",
+      "Fixed Borderless on some Windows PCs blanking the monitor at launch and every time you Alt-Tab back into the game, as exclusive fullscreen does."
     ]
   },
   "releases": [
