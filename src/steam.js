@@ -129,9 +129,17 @@ function withPlay(options, play) {
   return [...rest, ...(play ? ['--play'] : [])].join(' ');
 }
 
+// Launch options with each of `needed` (the AppImage's `--no-sandbox`) that is
+// missing put first, keeping the player's own. Without it a shortcut added by
+// hand opens the launcher in Desktop Mode but not in Game Mode.
+const words = options => String(options || '').split(/\s+/).filter(Boolean);
+const withOptions = (options, needed) => [...words(needed).filter(option => !words(options).includes(option)), ...words(options)].join(' ');
+const missingOptions = (options, needed) => words(needed).some(option => !words(options).includes(option));
+
 // Adds the launcher to a parsed shortcuts.vdf, or finds it by its Exe when it
-// is already there (added before, or by hand), keeping that entry's app ID
-// and name so its play time, collections and the player's name for it stay.
+// is already there (added before, or by hand) and fixes it in place, keeping
+// that entry's app ID so its play time, collections, controller layout and the
+// player's name for it stay, as removing it and adding it again would not.
 // `play` turns Skip Launcher on or off; left out, the options stay as they are.
 function upsertShortcut(root, { exe, startDir, appName = APP_NAME, launchOptions = '', play, platform = process.platform }) {
   let shortcuts = field(root, 'shortcuts');
@@ -144,7 +152,11 @@ function upsertShortcut(root, { exe, startDir, appName = APP_NAME, launchOptions
     const name = field(fields, 'appname')?.[2] || appName;
     if (!field(fields, 'appid')) setField(fields, INT32, 'appid', shortcutAppId(quotedExe, name) | 0);
     if (!unquote(field(fields, 'startdir')?.[2])) setField(fields, STRING, 'StartDir', `"${startDir}"`);
-    if (launchOptions && !field(fields, 'launchoptions')?.[2]) setField(fields, STRING, 'LaunchOptions', launchOptions);
+    if (launchOptions) setField(fields, STRING, 'LaunchOptions', withOptions(field(fields, 'launchoptions')?.[2], launchOptions));
+    // Steam names a game added by hand after its file: it becomes Super Mario
+    // Sunshine, to go with its artwork. A name the player chose stays.
+    const file = (platform === 'win32' ? path.win32 : path.posix).parse(exe);
+    if ([file.base, file.name].includes(field(fields, 'appname')?.[2])) setField(fields, STRING, 'appname', appName);
     if (play !== undefined) setField(fields, STRING, 'LaunchOptions', withPlay(field(fields, 'launchoptions')?.[2] || '', play));
     return { appId: field(fields, 'appid')[2] >>> 0, fields, added: false };
   }
@@ -220,6 +232,28 @@ function hasShortcut({ root, accounts, exe, platform = process.platform, files =
   });
 }
 
+// The launcher's launch options in Steam, from the first account that has it,
+// or null when none does. The banner shows Skip Launcher as it is set there.
+function shortcutLaunchOptions({ root, accounts, exe, platform = process.platform, files = fs }) {
+  for (const account of accounts) {
+    try {
+      const shortcuts = field(parseVdf(files.readFileSync(path.join(root, 'userdata', account, 'config', 'shortcuts.vdf'))), 'shortcuts');
+      const entry = shortcuts && findShortcut(shortcuts[2], exe, platform);
+      if (entry) return String(field(entry[2], 'launchoptions')?.[2] || '');
+    } catch { /* not readable: try the next account */ }
+  }
+  return null;
+}
+const skipsLauncher = options => String(options || '').split(/\s+/).includes('--play');
+
+// SteamOS, as on the Steam Deck: its os-release names it (or a system based on
+// it), or the firmware names Valve as the maker, as a Deck's does under any system.
+// LCD (Jupiter) and OLED (Galileo) Decks are told apart nowhere: both count.
+function isSteamOS({ osRelease = '', vendor = '' } = {}) {
+  const value = key => (new RegExp(`^${key}=["']?([^"'\\n]*)`, 'm').exec(osRelease)?.[1] || '').toLowerCase();
+  return value('ID') === 'steamos' || value('ID_LIKE').split(/\s+/).includes('steamos') || /^valve\b/i.test(vendor.trim());
+}
+
 function writeAtomically(file, data, files) {
   const temporary = `${file}.sms-launcher-new`;
   files.writeFileSync(temporary, data);
@@ -281,5 +315,6 @@ function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launch
 
 module.exports = {
   APP_NAME, ARTWORK, MAP, STRING, INT32, parseVdf, serializeVdf, shortcutAppId, upsertShortcut,
-  steamRoots, registrySteamPath, findSteam, steamAccounts, downloadArtwork, hasShortcut, checkedVdf, addShortcut
+  steamRoots, registrySteamPath, findSteam, steamAccounts, downloadArtwork, hasShortcut, shortcutLaunchOptions, skipsLauncher, missingOptions,
+  isSteamOS, checkedVdf, addShortcut
 };

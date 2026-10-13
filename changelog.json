@@ -5,7 +5,9 @@
       "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
       "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher.",
       "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered.",
-      "Preparing the build tools on Windows now counts the files as it unpacks them, and stops with an explanation if unpacking makes no progress for five minutes, instead of staying on \"Unpacking build tools…\" for good."
+      "Preparing the build tools on Windows now counts the files as it unpacks them, and stops with an explanation if unpacking makes no progress for five minutes, instead of staying on \"Unpacking build tools…\" for good.",
+      "Fixed the launcher never opening in the Steam Deck's Game Mode when it was added to Steam by hand: when you open it in Desktop Mode it now offers to fix that Steam shortcut, keeping its play time and controller layout and adding the artwork.",
+      "On the Steam Deck, the first time you choose Play the launcher offers to add Super Mario Sunshine to Steam. Once it's in Steam, the Add to Steam banner shows a tick instead of disappearing, and selecting it updates the artwork or Skip Launcher."
     ],
     "game": [
       "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
