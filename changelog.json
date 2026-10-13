@@ -1,40 +1,51 @@
 {
   "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
   "beta": {
-    "launcher": [
-      "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
-      "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher.",
-      "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered.",
-      "Preparing the build tools on Windows now counts the files as it unpacks them, and stops with an explanation if unpacking makes no progress for five minutes, instead of staying on \"Unpacking build tools…\" for good.",
-      "Fixed the launcher never opening in the Steam Deck's Game Mode when it was added to Steam by hand without the --no-sandbox launch option: the Linux launcher now always starts with it, so Steam shortcuts work as they are.",
-      "On the Steam Deck, the first time you choose Play the launcher offers to add Super Mario Sunshine to Steam. Once it's in Steam, the Add to Steam banner shows a tick instead of disappearing, and selecting it updates the artwork or Skip Launcher.",
-      "Fixed updates failing to link your HD textures, HD cutscenes or Eclipse files into the new game version when an older update had left a broken link to a removed version (\"EISDIR\" on Windows).",
-      "Save states: Settings → Saves lists your save states with a picture of each and its Shines, blue coins, coins and lives, imports states others send you, and shows or deletes them. Settings → Controls has Save a state and Load the newest state, and a controller binding can be two buttons held together."
-    ],
-    "game": [
-      "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
-      "Fixed the circle wipes, like the one from the file select into Delfino Plaza and the one after you collect a Shine, showing a see-through striped grey instead of solid black at picture sharpness above Original (1×).",
-      "Fixed two sparkles from the GO! at the start of a level staying on screen for good, by the Shine counter and at the top right, after you pause and continue.",
-      "Fixed the character select's song playing through Eclipse's Shadow Mario episodes instead of the stage's music.",
-      "Fixed the coin counter's sparkle appearing to the right of the counter with screen icons at the edges.",
-      "Fixed Bloopers' punches often not hurting Mario at 60 and 120 fps.",
-      "Fixed some of Eclipse's secret courses, such as Daisy Cruiser's, having no music until Mario lost a life.",
-      "Fixed birds flying at half speed at 60 fps and a quarter speed at 120 fps.",
-      "Fixed the GO! letters being drawn far too big at 60 and 120 fps after the first one, as at the start of Eclipse's races.",
-      "Fixed a possible crash when Eclipse's Fire Petey breathes fire.",
-      "HD cutscene setup now names the movie and says the disc image is damaged or trimmed, instead of only \"Expected THP 1.0 or 1.1\".",
-      "Fixed F10 not showing the mouse cursor in borderless or fullscreen when it releases mouse look.",
-      "Fixed Eclipse getting slower the longer you played, until you restarted.",
-      "Fixed Shadow Mario's theme blaring for a moment at GO! in Eclipse's Shadow Mario episodes.",
-      "Fixed the goop bubbles drawing as opaque domes in flat colour quadrants (the Airstrip, worst in widescreen); they're translucent again.",
-      "Fixed the game using up all of the computer's memory within seconds of starting, before the title screen, when its shader cache had been damaged (for example by two games running at once); a damaged cache now starts over.",
-      "Hid the small grey placeholder cubes floating among the rail boards in Bianco Hills' secret course, The Secret of the Dirty Lake.",
-      "Fixed Borderless on some Windows PCs blanking the monitor at launch and every time you Alt-Tab back into the game, as exclusive fullscreen does.",
-      "Save states: in a level, L1 + R1 (LB + RB, or F5) saves the exact moment you're in. Pause and press them again to pick one from a list beside its picture, with its Shines and blue coins, and the game fades back to that moment, with everything where it was; the pause menu shows the buttons at its top right. F6 loads the newest. States are files you can share; one from another version of the game takes you to the same level and spot.",
-      "Building or updating the game no longer also makes sms-standalone, an extra 1.1 GB copy of the game with your disc inside that the launcher never used, so builds finish sooner and take less space."
-    ]
+    "launcher": [],
+    "game": []
   },
   "releases": [
+    {
+      "version": "0.1.59",
+      "date": "2026-10-13",
+      "launcher": [
+        "Settings now has tabs down the side (Gameplay, Display, Graphics, Controls, Manage game, Saves and Launcher), so each setting is easier to find, and LB and RB switch between them.",
+        "Dark mode: Settings, the changelog and the launcher's other windows can be dark instead of light. Turn it on under Settings → Launcher.",
+        "Beta stays available under Settings → Launcher → Updates when the launcher can't load the list of update channels (offline, or GitHub's hourly limit); before, only Stable was offered.",
+        "Preparing the build tools on Windows now counts the files as it unpacks them, and stops with an explanation if unpacking makes no progress for five minutes, instead of staying on \"Unpacking build tools…\" for good.",
+        "Fixed the launcher never opening in the Steam Deck's Game Mode when it was added to Steam by hand without the --no-sandbox launch option: the Linux launcher now always starts with it, so Steam shortcuts work as they are.",
+        "On the Steam Deck, the first time you choose Play the launcher offers to add Super Mario Sunshine to Steam. Once it's in Steam, the Add to Steam banner shows a tick instead of disappearing, and selecting it updates the artwork or Skip Launcher.",
+        "Fixed updates failing to link your HD textures, HD cutscenes or Eclipse files into the new game version when an older update had left a broken link to a removed version (\"EISDIR\" on Windows).",
+        "Save states: Settings → Saves lists your save states with a picture of each and its Shines, blue coins, coins and lives, imports states others send you, and shows or deletes them. Settings → Controls has Save a state and Load the newest state, and a controller binding can be two buttons held together."
+      ],
+      "game": {
+        "version": "2026.10.13.1",
+        "commit": "831cdd97277ae3ac6696e8e81fda1dd732ff2f91",
+        "changes": [
+          "Fixed the stars missing with HD textures on when Mario bonks into a wall or stuns a Cataquack.",
+          "Fixed the circle wipes, like the one from the file select into Delfino Plaza and the one after you collect a Shine, showing a see-through striped grey instead of solid black at picture sharpness above Original (1×).",
+          "Fixed two sparkles from the GO! at the start of a level staying on screen for good, by the Shine counter and at the top right, after you pause and continue.",
+          "Fixed the character select's song playing through Eclipse's Shadow Mario episodes instead of the stage's music.",
+          "Fixed the coin counter's sparkle appearing to the right of the counter with screen icons at the edges.",
+          "Fixed Bloopers' punches often not hurting Mario at 60 and 120 fps.",
+          "Fixed some of Eclipse's secret courses, such as Daisy Cruiser's, having no music until Mario lost a life.",
+          "Fixed birds flying at half speed at 60 fps and a quarter speed at 120 fps.",
+          "Fixed the GO! letters being drawn far too big at 60 and 120 fps after the first one, as at the start of Eclipse's races.",
+          "Fixed a possible crash when Eclipse's Fire Petey breathes fire.",
+          "HD cutscene setup now names the movie and says the disc image is damaged or trimmed, instead of only \"Expected THP 1.0 or 1.1\".",
+          "Fixed F10 not showing the mouse cursor in borderless or fullscreen when it releases mouse look.",
+          "Fixed Eclipse getting slower the longer you played, until you restarted.",
+          "Fixed Shadow Mario's theme blaring for a moment at GO! in Eclipse's Shadow Mario episodes.",
+          "Fixed the goop bubbles drawing as opaque domes in flat colour quadrants (the Airstrip, worst in widescreen); they're translucent again.",
+          "Fixed the game using up all of the computer's memory within seconds of starting, before the title screen, when its shader cache had been damaged (for example by two games running at once); a damaged cache now starts over.",
+          "Hid the small grey placeholder cubes floating among the rail boards in Bianco Hills' secret course, The Secret of the Dirty Lake.",
+          "Fixed Borderless on some Windows PCs blanking the monitor at launch and every time you Alt-Tab back into the game, as exclusive fullscreen does.",
+          "Save states: in a level, L1 + R1 (LB + RB, or F5) saves the exact moment you're in. Pause and press them again to pick one from a list beside its picture, with its Shines and blue coins, and the game fades back to that moment, with everything where it was; the pause menu shows the buttons at its top right. F6 loads the newest. States are files you can share; one from another version of the game takes you to the same level and spot.",
+          "Building or updating the game no longer also makes sms-standalone, an extra 1.1 GB copy of the game with your disc inside that the launcher never used, so builds finish sooner and take less space.",
+          "Fixed the frame rate dropping during the wipe that opens and closes the map."
+        ]
+      }
+    },
     {
       "version": "0.1.58",
       "date": "2026-10-12",
