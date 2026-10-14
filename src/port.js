@@ -232,10 +232,17 @@ function languagePackInstalled(root, code) {
   } catch (_) { return false; }
 }
 
+// The language the game plays in. Eclipse has no language packs and its own
+// text is English, so it always plays in English; the chosen language is kept
+// for Super Mario Sunshine.
+function gameLanguage(settings) {
+  return !settings.eclipse && LANGUAGES.includes(settings.language) ? settings.language : 'en';
+}
+
 // The pack to download for these settings: a language other than English, a
 // port that has packs, and not the pinned release installed.
 function languagePackWanted(root, settings) {
-  const code = settings.language;
+  const code = gameLanguage(settings);
   return LANGUAGES.includes(code) && code !== 'en' && languagePacksSupported(root) && !languagePackInstalled(root, code);
 }
 
@@ -296,7 +303,7 @@ function buildEnvironment(settings, disc, root) {
     SMS_FULLSCREEN: settings.fullscreen ? (settings.fullscreenMode === 'exclusive' ? 'exclusive' : '1') : '0',
     SMS_VSYNC: settings.vsync === 'adaptive' ? 'adaptive' : settings.vsync === 'on' ? '1' : '0',
     SMS_SKIP_MOVIES: settings.skipMovies ? '1' : '0',
-    SMS_LANGUAGE: LANGUAGES.includes(settings.language) ? settings.language : 'en',
+    SMS_LANGUAGE: gameLanguage(settings),
     SMS_SOFT_TRIGGER: String(settings.softTrigger ?? 40),
     SMS_RUMBLE: settings.rumbleStrength === 0 ? '0' : '1',
     SMS_RUMBLE_STRENGTH: String(rumbleGameStrength(settings.rumbleStrength)),
@@ -448,6 +455,6 @@ function eclipseRunCommand(...args) { return gameRunCommand(...args); }
 
 module.exports = { PORT_URL, ECLIPSE_ISO, platformInfo, isPort, validateRom, normalizeSettings, savedSettings,
   texturePackDirectory, texturePackInstalled, textureExtrasDirectory, textureExtrasSupported, textureExtrasInstalled, textureExtrasWanted,
-  LANGUAGES, languagePackDirectory, languagePacksSupported, languagePackInstalled, languagePackWanted,
+  LANGUAGES, gameLanguage, languagePackDirectory, languagePacksSupported, languagePackInstalled, languagePackWanted,
   cutscenePackDirectory, cutscenePackInstalled, cutscenePackSupported, cutscenePackRequirements, wantsCutscenes, hdVisualsInstalled, buildEnvironment, gameDisc, binaryPath,
   commandFor, eclipseBuildCommand, eclipseRunCommand, playableInstall };
