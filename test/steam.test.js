@@ -114,6 +114,10 @@ test('the launcher goes to the account signed in most recently, or to every acco
   const timestamps = '"users"\n{\n\t"76561197960265839"\n\t{\n\t\t"Timestamp"\t\t"1700000000"\n\t}\n' +
     '\t"76561197960265950"\n\t{\n\t\t"Timestamp"\t\t"1790000000"\n\t}\n}\n';
   assert.deepEqual(steam.steamAccounts(fakeSteam(t, { login: timestamps })), ['222']);
+  // a MostRecent left on an old account loses to the account signed in since
+  const stale = '"users"\n{\n\t"76561197960265839"\n\t{\n\t\t"MostRecent"\t\t"1"\n\t\t"Timestamp"\t\t"1700000000"\n\t}\n' +
+    '\t"76561197960265950"\n\t{\n\t\t"timestamp"\t\t"1790000000"\n\t}\n}\n';
+  assert.deepEqual(steam.steamAccounts(fakeSteam(t, { login: stale })), ['222']);
   const onlyOne = '"users"\n{\n\t"76561197960265839"\n\t{\n\t\t"AutoLogin"\t\t"1"\n\t\t"Timestamp"\t\t"1790000000"\n\t}\n}\n';
   assert.deepEqual(steam.steamAccounts(fakeSteam(t, { login: onlyOne })), ['111']);
   assert.deepEqual(steam.steamAccounts(fakeSteam(t)).sort(), ['111', '222']);
@@ -160,6 +164,60 @@ test("shortcuts.vdf is not written unless every other non-Steam game is still in
   const changed = steam.parseVdf(steamFile());
   field(changed, 'shortcuts')[0][2].find(entry => entry[1] === 'appname')[2] = 'Renamed';
   assert.throws(() => steam.checkedVdf(changed, others, 1), /Nothing was changed/);
+});
+
+// A shortcuts.vdf listing `count` games, each a copy of steamFile()'s.
+function steamFileWith(count) {
+  const [game] = steam.parseVdf(steamFile())[0][2];
+  return steam.serializeVdf([[MAP, 'shortcuts', Array.from({ length: count }, (_, index) => [MAP, String(index), game[2]])]]);
+}
+
+test("every Steam folder's list, folder 0 too, is counted and backed up before Steam closes", t => {
+  const root = fakeSteam(t, { accounts: ['222'] });
+  const vdf = account => path.join(root, 'userdata', account, 'config', 'shortcuts.vdf');
+  fs.writeFileSync(vdf('0'), steamFileWith(3));
+  fs.writeFileSync(vdf('222'), steamFileWith(1));
+  const snapshot = steam.snapshotShortcuts({ root });
+  assert.deepEqual(snapshot.map(({ account, count }) => [account, count]), [['0', 3], ['222', 1]]);
+  assert.equal(steam.describeShortcuts(snapshot), 'folder 0: 3 non-Steam games; account 222: 1 non-Steam game');
+  for (const account of ['0', '222']) assert.deepEqual(fs.readFileSync(`${vdf(account)}.sms-launcher-backup`), fs.readFileSync(vdf(account)));
+  // the same list again makes no new copy; a changed one gets a dated copy
+  steam.snapshotShortcuts({ root });
+  fs.writeFileSync(vdf('222'), steamFileWith(2));
+  assert.equal(steam.snapshotShortcuts({ root, backUp: false })[1].backup, null);
+  const [, changed] = steam.snapshotShortcuts({ root });
+  assert.match(path.basename(changed.backup), /^shortcuts\.vdf\.sms-launcher-backup-\d{4}-/);
+  steam.snapshotShortcuts({ root });
+  assert.equal(fs.readdirSync(path.dirname(vdf('222'))).filter(name => name.includes('backup')).length, 2);
+  fs.writeFileSync(vdf('222'), 'not a vdf');
+  assert.match(steam.describeShortcuts(steam.snapshotShortcuts({ root, backUp: false })), /account 222: couldn't be read/);
+  assert.equal(steam.describeShortcuts([]), 'no shortcuts.vdf in any Steam folder');
+});
+
+test('when Steam writes its list short as it closes, the list from before goes back and nothing is added', t => {
+  const root = fakeSteam(t, { accounts: ['111', '222'] });
+  const vdf = account => path.join(root, 'userdata', account, 'config', 'shortcuts.vdf');
+  fs.writeFileSync(vdf('111'), steamFileWith(2));
+  fs.writeFileSync(vdf('222'), steamFileWith(5));
+  const snapshot = steam.snapshotShortcuts({ root });
+  const short = steamFileWith(1);
+  fs.writeFileSync(vdf('222'), short); // Steam's own write as it exits
+  const options = { root, accounts: ['111', '222'], exe: '/opt/SMS-Launcher.AppImage', startDir: '/opt', platform: 'linux', snapshot };
+  assert.throws(() => steam.addShortcut(options), error => /Steam lost 4 of the 5 non-Steam games/.test(error.message)
+    && error.restored.account === '222' && error.restored.before === 5 && error.restored.after === 1);
+  assert.deepEqual(fs.readFileSync(vdf('222')), steamFileWith(5));
+  assert.deepEqual(fs.readFileSync(vdf('111')), steamFileWith(2)); // no account was changed
+  const kept = fs.readdirSync(path.dirname(vdf('222'))).filter(name => name.startsWith('shortcuts.vdf.sms-launcher-backup-'));
+  assert.deepEqual(kept.map(name => fs.readFileSync(path.join(path.dirname(vdf('222')), name))), [short]);
+  // a missing file counts as an empty list
+  fs.rmSync(vdf('222'));
+  assert.throws(() => steam.addShortcut(options), /Steam lost 5 of the 5/);
+  assert.deepEqual(fs.readFileSync(vdf('222')), steamFileWith(5));
+  // with every list as long as before, the launcher is added
+  const results = steam.addShortcut(options);
+  assert.deepEqual(results.map(result => [result.account, result.added, result.kept]), [['111', true, 2], ['222', true, 5]]);
+  // the list from before Steam closed was already backed up, so no new copy
+  assert.equal(results[1].backup, `${vdf('222')}.sms-launcher-backup`);
 });
 
 test('an account without shortcuts.vdf gets a new one', t => {
