@@ -232,7 +232,7 @@ jobs:
           else
             title="Beta $version · game ${GAME:0:7}"
             # refresh-beta.yml reads the marker to skip a rebuild when nothing changed.
-            notes="Beta build of launcher main at ${SHA:0:7} with game ${GAME:0:7}. To join, open Settings > Launcher and choose \"Beta\" under Launcher updates."$'\n\n'"<!-- beta launcher=$SHA game=$GAME -->"
+            notes="Beta build of launcher main at ${SHA:0:7} with game ${GAME:0:7}. To join, open Settings > Launcher and choose \"Beta\" under Launcher updates. The portable Windows launcher joins by downloading the win-portable.exe below into its folder."$'\n\n'"<!-- beta launcher=$SHA game=$GAME -->"
           fi
           # A tag on a fork's commit cannot be created here; tag main instead and name the commit in the notes.
           target="$SHA"
