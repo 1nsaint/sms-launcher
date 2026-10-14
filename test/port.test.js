@@ -303,6 +303,15 @@ test('the game plays in English unless another language is chosen', () => {
   }
 });
 
+test('Eclipse always plays in English and keeps the chosen language for Super Mario Sunshine', () => {
+  for (const code of ['en', 'fr', 'de', 'es', 'it']) {
+    const eclipse = port.normalizeSettings({ language: code, eclipse: true });
+    assert.equal(eclipse.language, code);
+    assert.equal(port.buildEnvironment(eclipse, '/my/disc.iso', '/port').SMS_LANGUAGE, 'en');
+    assert.equal(port.buildEnvironment({ ...eclipse, eclipse: false }, '/my/disc.iso', '/port').SMS_LANGUAGE, code);
+  }
+});
+
 test('a language pack is downloaded when that language is chosen and its pinned release is missing', t => {
   const root = temporary(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const french = port.normalizeSettings({ language: 'fr' }), english = port.normalizeSettings({});
@@ -321,6 +330,7 @@ test('a language pack is downloaded when that language is chosen and its pinned 
   pin('9352b8c1462182ca1a5493eef4062f1e');
   assert.equal(port.languagePackWanted(root, french), true);
   assert.equal(port.languagePackWanted(root, english), false); // English is the disc's own
+  assert.equal(port.languagePackWanted(root, { ...french, eclipse: true }), false); // Eclipse plays in English
   record('9352b8c1462182ca1a5493eef4062f1e');
   assert.equal(port.languagePackInstalled(root, 'fr'), true);
   assert.equal(port.languagePackWanted(root, french), false);

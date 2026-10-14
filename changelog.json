@@ -4,7 +4,8 @@
     "launcher": [
       "Rumble strength: set how hard your controller rumbles under Settings → Controls, and feel it on your controller as you move the slider. 50% matches the console; turn it up for stronger rumble, or down to 0% to turn it off.",
       "Settings → Controls shows when a GameCube adapter is plugged in and whether the game can read it, and on Linux, Allow access gives the game permission to open it.",
-      "Fixed setup on Windows stopping with \"operation not permitted\" while the build tools were moved into place, usually because antivirus was still scanning them."
+      "Fixed setup on Windows stopping with \"operation not permitted\" while the build tools were moved into place, usually because antivirus was still scanning them.",
+      "Fixed Super Mario Eclipse with a language other than English chosen: Eclipse now always plays in English, and Settings greys out Language while Eclipse is on. Your language comes back when you turn Eclipse off."
     ],
     "game": [
       "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",

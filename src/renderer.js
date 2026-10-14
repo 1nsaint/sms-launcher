@@ -636,9 +636,11 @@ function refresh(data) {
   renderGameSource(data);
   for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode', 'updateChannel', 'buttonPrompts', 'promptPad', 'graphicsPreset', 'fsrMode'])
     $(key).disabled = Boolean(data.active);
-  // Languages need a game version with language packs; Eclipse has its own text.
-  $('language-note').textContent = data.repoReady && !data.languagesSupported ? 'Update the game to add languages.'
-    : config.settings.language !== 'en' && config.settings.eclipse ? 'Eclipse plays in English.'
+  // Languages need a game version with language packs. Eclipse has none and plays in English;
+  // the chosen language stays for Super Mario Sunshine.
+  $('language').disabled = Boolean(data.active) || config.settings.eclipse;
+  $('language-note').textContent = config.settings.eclipse ? 'Super Mario Eclipse plays in English. Your language applies when Eclipse is off.'
+    : data.repoReady && !data.languagesSupported ? 'Update the game to add languages.'
       : config.settings.language !== 'en' && !data.languageInstalled ? 'The language pack downloads before the game starts.' : '';
   $('language-note').hidden = !$('language-note').textContent;
   renderDependents(Boolean(data.active));
