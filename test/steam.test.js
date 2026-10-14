@@ -220,6 +220,24 @@ test('when Steam writes its list short as it closes, the list from before goes b
   assert.equal(results[1].backup, `${vdf('222')}.sms-launcher-backup`);
 });
 
+test("shortcuts.vdf keeps its permissions, as NonSteamLaunchers empties one that isn't executable", { skip: process.platform === 'win32' }, t => {
+  const root = fakeSteam(t, { accounts: ['111'] });
+  const vdf = path.join(root, 'userdata', '111', 'config', 'shortcuts.vdf');
+  fs.writeFileSync(vdf, steamFileWith(2));
+  fs.chmodSync(vdf, 0o755);
+  const snapshot = steam.snapshotShortcuts({ root });
+  const mode = file => fs.statSync(file).mode & 0o777;
+  assert.equal(mode(snapshot[0].backup), 0o755);
+  const options = { root, accounts: ['111'], exe: '/opt/SMS-Launcher.AppImage', startDir: '/opt', platform: 'linux', snapshot };
+  steam.addShortcut(options);
+  assert.equal(mode(vdf), 0o755);
+  // a list Steam deleted as it closed comes back with them too
+  fs.rmSync(vdf);
+  assert.throws(() => steam.addShortcut(options), /Steam lost 2 of the 2/);
+  assert.equal(mode(vdf), 0o755);
+  assert.deepEqual(fs.readFileSync(vdf), steamFileWith(2));
+});
+
 test('an account without shortcuts.vdf gets a new one', t => {
   const root = fakeSteam(t, { accounts: ['111'] });
   const [result] = steam.addShortcut({ root, accounts: ['111'], exe: '/opt/SMS-Launcher.AppImage', startDir: '/opt', platform: 'linux' });
