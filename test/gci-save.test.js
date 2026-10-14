@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { convertGci, readGci, importGci } = require('../src/gci-save');
+const { convertGci, readGci, readGciFiles, importGci } = require('../src/gci-save');
 const saves = require('../src/saves');
 
 function fixture() {
@@ -27,6 +27,24 @@ function fixture() {
     bytes.writeUInt16BE(0xffff, start + 0x1ffc);
     bytes.writeUInt16BE(0xf003, start + 0x1ffe);
   }
+  // File A: a TFlagManager save (magic 4) with 3 Shines, written twice.
+  setSector(bytes, 1, sector => { sector.writeUInt32BE(2, 0); sector.writeUInt32BE(4, 4); sector.writeUInt16BE(3, 0x1c); });
+  return bytes;
+}
+
+function setSector(bytes, index, change) {
+  const sector = bytes.subarray(0x40 + index * 0x2000, 0x40 + (index + 1) * 0x2000);
+  sector.fill(0); change(sector);
+  let sum = 0, inverted = 0;
+  for (let offset = 0; offset < 0x1ffc; offset += 2) {
+    sum = (sum + sector.readUInt16BE(offset)) & 0xffff;
+    inverted = (inverted + (~sector.readUInt16BE(offset) & 0xffff)) & 0xffff;
+  }
+  sector.writeUInt16BE(sum, 0x1ffc); sector.writeUInt16BE(inverted, 0x1ffe);
+}
+
+function eclipse() {
+  const bytes = fixture(); bytes.write('04', 4);
   return bytes;
 }
 
@@ -55,8 +73,44 @@ test('GCI conversion preserves every payload byte and maps big-endian metadata t
   assert.equal(result.stat.readUInt16LE(0x34), 5);
   assert.equal(result.stat.readUInt16LE(0x36), 15);
   assert.equal(result.stat.readUInt32LE(0x38), 4);
+  assert.equal(result.name, 'super_mario_sunshine');
+  assert.deepEqual(result.shines, [3, null, null]);
   bytes[0x40] = 0;
   assert.equal(result.data[0], 0xff);
+});
+
+test('reports each file\'s Shines from its newest intact copy', () => {
+  const bytes = fixture();
+  setSector(bytes, 2, sector => { sector.writeUInt32BE(3, 0); sector.writeUInt32BE(4, 4); sector.writeUInt16BE(5, 0x1c); });
+  setSector(bytes, 6, sector => { sector.writeUInt32BE(1, 0); sector.writeUInt32BE(4, 4); });
+  assert.deepEqual(convertGci(bytes).shines, [5, null, 0]);
+  bytes[0x40 + 2 * 0x2000 + 0x100] = 1;
+  assert.deepEqual(convertGci(bytes).shines, [3, null, 0]);
+});
+
+test('rejects a save with no progress in any file, pointing Sunshine exports at Eclipse\'s', () => {
+  const bytes = fixture(); setSector(bytes, 1, () => {});
+  assert.throws(() => convertGci(bytes), /no saved progress.*04-GMSE-super_mario_sunshine\.gci/);
+  bytes.write('04', 4);
+  assert.throws(() => convertGci(bytes), err => /Super Mario Eclipse save has no saved progress/.test(err.message) && !/04-GMSE/.test(err.message));
+});
+
+test('Super Mario Eclipse saves (GMSE04) keep their ID and go to the port\'s GMSE04 card file', context => {
+  const result = convertGci(eclipse());
+  assert.equal(result.name, 'GMSE04_super_mario_sunshine');
+  assert.equal(result.title, 'Super Mario Eclipse');
+  assert.equal(result.stat.toString('ascii', 0, 20), 'super_mario_sunshine');
+  assert.equal(result.stat.toString('ascii', 0x28, 0x2e), 'GMSE04');
+  const { card, backups } = temporary(context); fs.mkdirSync(card);
+  fs.writeFileSync(path.join(card, 'index.txt'), 'super_mario_sunshine\nGMSE04_super_mario_eclipse\n');
+  fs.writeFileSync(path.join(card, 'super_mario_sunshine.dat'), 'vanilla progress');
+  fs.writeFileSync(path.join(card, 'super_mario_sunshine.stat'), Buffer.alloc(108));
+  importGci(result, card, backups);
+  assert.equal(fs.readFileSync(path.join(card, 'index.txt'), 'utf8'),
+    'super_mario_sunshine\nGMSE04_super_mario_eclipse\nGMSE04_super_mario_sunshine\n');
+  assert.equal(fs.readFileSync(path.join(card, 'super_mario_sunshine.dat'), 'utf8'), 'vanilla progress');
+  assert.deepEqual(fs.readFileSync(path.join(card, 'GMSE04_super_mario_sunshine.dat')), eclipse().subarray(0x40));
+  assert.deepEqual(fs.readFileSync(path.join(card, 'GMSE04_super_mario_sunshine.stat')), result.stat);
 });
 
 test('corrupt block checksums warn without changing or repairing save data', () => {
@@ -70,7 +124,7 @@ test('rejects raw cards, truncated files, foreign games/regions, unsafe names an
   const bytes = fixture();
   for (const input of [Buffer.alloc(0), bytes.subarray(0x40), bytes.subarray(0, bytes.length - 1),
     Buffer.concat([bytes, Buffer.alloc(1)])]) assert.throws(() => convertGci(input), /seven save blocks/);
-  for (const [offset, value, message] of [[0, 'GZLE01', /North American/], [0, 'GMSP01', /North American/],
+  for (const [offset, value, message] of [[0, 'GZLE01', /North American/], [0, 'GMSP01', /North American/], [0, 'GMSE02', /North American/],
     [8, '../../outside', /not the super/]]) {
     const input = Buffer.from(bytes); input.write(value, offset);
     assert.throws(() => convertGci(input), message);
@@ -169,4 +223,47 @@ test('full or malformed cards and symlink entries are rejected without changing 
     fs.symlinkSync(path.join(card, 'other_game.dat'), path.join(card, 'link.dat'));
     assert.throws(() => importGci(convertGci(fixture()), card, backups), /symbolic link/);
   }
+});
+
+function otherCardFile(id, name) {
+  const bytes = Buffer.alloc(0x40 + 0x2000);
+  bytes.write(id); bytes[6] = 0xff; bytes[7] = 1; bytes.write(name, 8);
+  bytes.writeUInt32BE(0x44, 0x2c); bytes.writeUInt16BE(1, 0x38); bytes.writeUInt32BE(4, 0x3c);
+  return bytes;
+}
+
+test('names Eclipse settings files and other games\' card files instead of reporting a size problem', () => {
+  for (const name of ['super_mario_eclipse', 'better_sunshine_engine', 'better_sunshine_moveset'])
+    assert.throws(() => convertGci(otherCardFile('GMSE04', name)),
+      error => error.code === 'OTHER_FILE' && /settings, not game progress.*04-GMSE-super_mario_sunshine\.gci/.test(error.message));
+  assert.throws(() => convertGci(otherCardFile('GMSM01', 'sunshine_mirror_mode')), error => error.code === 'OTHER_FILE' && /North American/.test(error.message));
+  assert.throws(() => convertGci(otherCardFile('GMSE04', 'super_mario_eclipse').subarray(0, 100)), error => !error.code && /seven save blocks/.test(error.message));
+});
+
+test('a dropped card folder imports the save with progress and skips the other files', context => {
+  const { root } = temporary(context);
+  const folder = path.join(root, 'Card A'); fs.mkdirSync(folder);
+  const empty = fixture(); setSector(empty, 1, () => {});
+  fs.writeFileSync(path.join(folder, '01-GMSE-super_mario_sunshine.gci'), empty);
+  fs.writeFileSync(path.join(folder, '04-GMSE-super_mario_sunshine.gci'), eclipse());
+  fs.writeFileSync(path.join(folder, '04-GMSE-super_mario_eclipse.gci'), otherCardFile('GMSE04', 'super_mario_eclipse'));
+  fs.writeFileSync(path.join(folder, '01-GMSM-sunshine_mirror_mode_0.gci'), otherCardFile('GMSM01', 'sunshine_mirror_mode'));
+  fs.writeFileSync(path.join(folder, 'notes.txt'), 'not a save');
+  const { found, skipped } = readGciFiles([folder]);
+  assert.deepEqual(found.map(save => [path.basename(save.file), save.converted.name, save.converted.shines]),
+    [['04-GMSE-super_mario_sunshine.gci', 'GMSE04_super_mario_sunshine', [3, null, null]]]);
+  assert.deepEqual(skipped, [
+    { file: '01-GMSE-super_mario_sunshine.gci', reason: 'Super Mario Sunshine save with no saved progress' },
+    { file: '01-GMSM-sunshine_mirror_mode_0.gci', reason: 'not a Sunshine or Eclipse save' },
+    { file: '04-GMSE-super_mario_eclipse.gci', reason: 'Eclipse settings, not a game save' }]);
+  // Alone, a file that cannot be imported says why; with others, a broken file stops the import.
+  assert.throws(() => readGciFiles([path.join(folder, '04-GMSE-super_mario_eclipse.gci')]), /Eclipse's settings/);
+  fs.writeFileSync(path.join(folder, 'broken.gci'), Buffer.alloc(10));
+  assert.throws(() => readGciFiles([folder]), /^Error: broken\.gci: Choose a Super Mario Sunshine/);
+  fs.rmSync(path.join(folder, 'broken.gci'));
+  fs.writeFileSync(path.join(folder, 'copy of 04.gci'), eclipse());
+  assert.throws(() => readGciFiles([folder]), /two saves for the same game/);
+  const emptyFolder = path.join(root, 'empty'); fs.mkdirSync(emptyFolder);
+  assert.throws(() => readGciFiles([emptyFolder]), /no Dolphin \.gci/);
+  assert.throws(() => readGciFiles([path.join(folder, '01-GMSE-super_mario_sunshine.gci'), path.join(folder, '04-GMSE-super_mario_eclipse.gci')]), /None of these files has Sunshine or Eclipse progress/);
 });

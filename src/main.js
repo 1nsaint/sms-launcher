@@ -1185,28 +1185,40 @@ function registerHandlers() {
   ipcMain.handle('gc-adapter-copy-command', () => clipboard.writeText(gcAdapter.terminalCommand()));
   ipcMain.handle('steam-offered', (_event, prompt) => markSteamOffered(prompt));
   ipcMain.handle('add-to-steam', (_event, options) => exclusive('Add to Steam', () => addToSteam(options)));
-  ipcMain.handle('import-dolphin-save', (_event, file) => exclusive('Import Dolphin save', async () => {
-    if (file == null) {
+  // Takes one or more .gci files: a player's Dolphin card often has both the
+  // Sunshine (01-GMSE) and the Eclipse (04-GMSE) save, and either may be empty.
+  ipcMain.handle('import-dolphin-save', (_event, files) => exclusive('Import Dolphin save', async () => {
+    if (files == null) {
       const chosen = await dialog.showOpenDialog(window, { title: 'Import Dolphin save',
-        properties: ['openFile'], filters: [{ name: 'Dolphin save', extensions: ['gci'] }] });
+        properties: ['openFile', 'multiSelections'], filters: [{ name: 'Dolphin save', extensions: ['gci'] }] });
       if (chosen.canceled || !chosen.filePaths.length) return { cancelled: true };
-      file = chosen.filePaths[0];
+      files = chosen.filePaths;
     }
-    const converted = gciSave.readGci(file);
+    if (!Array.isArray(files) || !files.length) throw new Error('Choose a Dolphin .gci save file.');
+    const { found, skipped } = gciSave.readGciFiles(files);
     const directory = currentSaveDirectory();
-    const existing = fs.existsSync(path.join(directory, `${converted.name}.dat`));
-    const warning = converted.badBlocks.length
-      ? `\n\nSave checksums failed in block(s) ${converted.badBlocks.join(', ')}. Some blocks may be unused or damaged; the game may be unable to load this save.` : '';
+    const existing = found.some(({ converted }) => fs.existsSync(path.join(directory, `${converted.name}.dat`)));
+    const bad = found.filter(({ converted }) => converted.badBlocks.length);
+    const warning = bad.map(({ file, converted }) => `\n\n${path.basename(file)}: save checksums failed in block(s) ${converted.badBlocks.join(', ')}. Some blocks may be unused or damaged; the game may be unable to load this save.`).join('');
+    const summary = found.map(({ file, converted }) => `${converted.title} (${path.basename(file)})\n` +
+      converted.shines.map((count, i) => `File ${'ABC'[i]}: ${count === null ? 'empty' : `${count} Shine${count === 1 ? '' : 's'}`}`).join('\n')).join('\n\n');
+    const skippedNote = skipped.length ? `\n\nSkipping ${skipped.map(save => `${save.file} (${save.reason})`).join(', ')}.` : '';
+    const titles = found.map(save => save.converted.title).join(' and ');
     const answer = await dialog.showMessageBox(window, {
       type: existing || warning ? 'warning' : 'question',
-      buttons: ['Cancel', 'Import save'], defaultId: 0, cancelId: 0,
-      message: existing ? 'Replace your Sunshine save with this Dolphin save?' : 'Import this Dolphin save?',
-      detail: `${path.basename(file)}\n\nDestination: ${directory}\n\nThis imports the whole Sunshine save, including all three save slots. Your current memory card will be backed up first. The original .gci file is kept.${warning}`
+      buttons: ['Cancel', found.length > 1 ? 'Import saves' : 'Import save'], defaultId: 0, cancelId: 0,
+      message: existing ? `Replace your ${titles} save${found.length > 1 ? 's' : ''} with ${found.length > 1 ? 'these Dolphin saves' : 'this Dolphin save'}?`
+        : `Import ${found.length > 1 ? 'these' : 'this'} ${titles} save${found.length > 1 ? 's' : ''} from Dolphin?`,
+      detail: `${summary}${skippedNote}\n\nDestination: ${directory}\n\nEach save is imported whole, including all three save files. Your current memory card will be backed up first. The original .gci files are kept.${warning}`
     });
     if (answer.response !== 1) return { cancelled: true };
-    const result = gciSave.importGci(converted, directory);
-    log(`Imported Dolphin save into ${directory}.${result.previous ? ` Previous saves: ${result.previous}` : ''}`);
-    return result;
+    const imported = [];
+    for (const { file, converted } of found) {
+      const result = gciSave.importGci(converted, directory);
+      log(`Imported Dolphin ${converted.title} save into ${directory}.${result.previous ? ` Previous saves: ${result.previous}` : ''}`);
+      imported.push({ ...result, game: converted.game, title: converted.title, shines: converted.shines, file: path.basename(file) });
+    }
+    return { imported, skipped };
   }));
   ipcMain.handle('restore-saves', async (_event, id) => {
     if (operation || active) throw new Error('Stop the running game or task before restoring saves.');

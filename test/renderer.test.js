@@ -18,8 +18,13 @@ function state() {
 }
 
 async function renderer(data = state(), copyError = null, notes = { releases: [], unseen: [], current: '0.1.39' }, steam = {}) {
+  const importResult = { imported: [{ name: 'GMSE04_super_mario_sunshine', game: 'eclipse', title: 'Super Mario Eclipse',
+    shines: [3, null, 1], file: '04-GMSE-super_mario_sunshine.gci' }],
+  skipped: [{ file: '01-GMSE-super_mario_sunshine.gci', reason: 'Super Mario Sunshine save with no saved progress' },
+    { file: '04-GMSE-super_mario_eclipse.gci', reason: 'Eclipse settings, not a game save' }] };
   const changelogSeen = [], calls = [], elements = new Map(), droppedFiles = [], listeners = {}, gamepad = {};
   let logCallback, resetCallback, activityCallback;
+  const text = node => node.textContent + node.children.map(text).join(' ');
   function element(classes = '') {
     const names = new Set(classes.split(' ')), listeners = new Map();
     return { hidden: false, disabled: false, textContent: '', value: '', style: {}, open: false,
@@ -30,7 +35,8 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
       click() { if (!this.disabled) for (const callback of listeners.get('click') || []) callback(); },
       dispatch(event, value) { for (const callback of listeners.get(event) || []) callback(value); },
       setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; },
-      replaceChildren(...children) { this.textContent = children.map(child => child.textContent).join(''); }, append() {}, focus() {},
+      replaceChildren(...children) { this.textContent = children.map(text).join(''); }, append() {}, focus() {},
+      children: [], appendChild(child) { this.children.push(child); return child; },
       close() { this.open = false; }, showModal() { this.open = true; } };
   }
   const html = fs.readFileSync(path.resolve(__dirname, '../src/index.html'), 'utf8');
@@ -42,7 +48,7 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
   }
   const sms = {
     state: async () => data, windowState: async () => ({}), zoomFactor: () => 1,
-    importDolphinSave: async file => { calls.push('importDolphinSave'); droppedFiles.push(file); return { name: 'super_mario_sunshine' }; },
+    importDolphinSave: async file => { calls.push('importDolphinSave'); droppedFiles.push(file); return importResult; },
     onLog(callback) { logCallback = callback; }, onActivity(callback) { activityCallback = callback; }, onAppUpdate() {}, onWindowState() {}, onOnline(callback) { listeners.online = callback; },
     onLogReset(callback) { resetCallback = callback; },
     saveActivityLog: async () => { calls.push('saveActivityLog'); },
@@ -97,28 +103,34 @@ test('Update & play shows the newly built game version once the game starts', as
   assert.equal(ui.elements.get('installed-game-version').textContent, 'newer');
 });
 
-test('Dolphin save import offers a chooser and drop, reports success and refuses busy or multiple drops', async () => {
+test('Dolphin save import offers a chooser and drop of one or more saves, reports each, and refuses while busy', async () => {
   const data = state(), ui = await renderer(data);
   await ui.click('import-dolphin-save');
   assert.deepEqual(ui.calls, ['importDolphinSave']);
-  assert.match(ui.elements.get('dolphin-import-result').textContent, /imported/);
+  const summary = ui.elements.get('dolphin-import-result').textContent;
+  for (const part of [/Super Mario Eclipse save imported/, /04-GMSE-super_mario_sunshine\.gci/, /Eclipse/,
+    /File A ★ 3 Shines/, /File B – Empty/, /File C ★ 1 Shine\b/, /Turn on Super Mario Eclipse under Gameplay/,
+    /Skipped 01-GMSE-super_mario_sunshine\.gci \(Super Mario Sunshine save with no saved progress\), 04-GMSE-super_mario_eclipse\.gci \(Eclipse settings, not a game save\)\./])
+    assert.match(summary, part);
   const file = { name: 'Sunshine.gci' }, drop = ui.elements.get('dolphin-save-drop');
   let prevented = false;
   const event = files => ({ preventDefault() { prevented = true; }, dataTransfer: { files } });
   drop.dispatch('drop', event([file]));
   await new Promise(setImmediate);
   assert.equal(prevented, true);
-  assert.equal(ui.droppedFiles[1], file);
-  drop.dispatch('drop', event([file, file]));
-  assert.match(ui.elements.get('dolphin-import-result').textContent, /one Dolphin/);
-  assert.equal(ui.calls.length, 2);
+  assert.deepEqual([...ui.droppedFiles[1]], [file]);
+  const other = { name: 'Eclipse.gci' };
+  drop.dispatch('drop', event([file, other]));
+  await new Promise(setImmediate);
+  assert.deepEqual([...ui.droppedFiles[2]], [file, other]);
+  assert.equal(ui.calls.length, 3);
   data.active = { label: 'Play Super Mario Sunshine' };
   await ui.refresh();
   assert.equal(ui.elements.get('import-dolphin-save').disabled, true);
   await ui.click('import-dolphin-save');
   drop.dispatch('drop', event([file]));
   await new Promise(setImmediate);
-  assert.equal(ui.calls.length, 2);
+  assert.equal(ui.calls.length, 3);
 });
 
 test('installed play is unavailable before setup, without a disc, or while busy', async () => {

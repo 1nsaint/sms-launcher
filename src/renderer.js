@@ -329,7 +329,7 @@ $('copy-activity-log').addEventListener('click', async () => {
     button.textContent = 'Copied';
   } catch (error) {
     setConsoleOpen(true);
-    result.textContent = `Could not copy log: ${error.message || String(error)}`;
+    result.textContent = `Could not copy log: ${errorText(error)}`;
   } finally {
     button.disabled = false;
   }
@@ -756,7 +756,12 @@ $('check-mac-tools').addEventListener('click', async () => {
   finally { $('check-mac-tools').disabled = false; }
 });
 
-function showError(error) { closeModal(); setMessage(error.message || String(error), true); }
+// Electron prefixes errors thrown in the main process with the IPC channel:
+// "Error invoking remote method 'import-dolphin-save': Error: <message>".
+function errorText(error) {
+  return String(error?.message || error).replace(/^Error invoking remote method '[^']*': (?:\w*Error: )?/, '');
+}
+function showError(error) { closeModal(); setMessage(errorText(error), true); }
 
 async function action(method) {
   setMessage('');
@@ -820,10 +825,10 @@ function renderHdr(busy = Boolean(current?.active)) {
 }
 async function loadDisplayInfo() {
   if (displayReport || $('hdr-panel').hidden || !window.sms.displayInfo) return;
-  displayReport = await window.sms.displayInfo().catch(error => ({ displays: [], error: error.message }));
+  displayReport = await window.sms.displayInfo().catch(error => ({ displays: [], error: errorText(error) }));
   renderHdr();
 }
-$('hdr-calibration-app').addEventListener('click', () => window.sms.openHdrCalibration().catch(error => setMessage(error.message)));
+$('hdr-calibration-app').addEventListener('click', () => window.sms.openHdrCalibration().catch(error => setMessage(errorText(error))));
 for (const key of ['hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'hdr', 'hdrCalibration'])
   $(key).addEventListener('input', () => renderHdr());
 
@@ -948,7 +953,7 @@ for (const [id, method] of Object.entries({
   'open-backups': 'openBackups', stop: 'stop', docs: 'openDocs'
 })) $(id).addEventListener('click', () => action(method));
 // The invite opens in the browser, even while the game builds or runs.
-$('discord').addEventListener('click', () => window.sms.openDiscord().catch(error => setMessage(error.message)));
+$('discord').addEventListener('click', () => window.sms.openDiscord().catch(error => setMessage(errorText(error))));
 
 // --- Changelog: changelog.json in the launcher repository (src/changelog.js). Each release lists its
 // launcher changes and the game it pins. After an update it opens once with the releases since the last.
@@ -1037,7 +1042,7 @@ async function showWhatsNew() {
 }
 $('changelog-show-all').addEventListener('click', () => renderChangelog(changelogShown, false));
 $('open-changelog').addEventListener('click', showChangelog);
-$('changelog-page').addEventListener('click', () => window.sms.openChangelogPage().catch(error => setMessage(error.message)));
+$('changelog-page').addEventListener('click', () => window.sms.openChangelogPage().catch(error => setMessage(errorText(error))));
 $('play').addEventListener('click', () => {
   if (wizardStep === 0) { if (!offerSteam()) runWizardAction('launchGame'); }
   else if (wizardStep === 1) {
@@ -1052,15 +1057,54 @@ $('play').addEventListener('click', () => {
 for (const button of document.querySelectorAll('[data-setup-back]')) button.addEventListener('click', () => {
   if (wizardStep > 1) { wizardStep -= 1; refresh(current); }
 });
-async function importDolphinSave(file) {
+// What a Dolphin import brought in: which game's save, and each file's Shines.
+function dolphinImportSummary(result) {
+  const add = (parent, tag, className, text) => {
+    const node = parent.appendChild(document.createElement(tag));
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const eclipse = result.game === 'eclipse';
+  const card = document.createElement('div'); card.className = 'dolphin-import-done';
+  const head = add(card, 'div', 'dolphin-import-head');
+  add(head, 'span', 'dolphin-import-check', '✓').setAttribute('aria-hidden', 'true');
+  const title = add(head, 'div');
+  add(title, 'strong', null, `${result.title} save imported`);
+  add(title, 'small', null, result.file);
+  add(head, 'span', `badge ${eclipse ? 'eclipse' : 'sunshine'}`, eclipse ? 'Eclipse' : 'Sunshine');
+  const files = add(card, 'div', 'dolphin-import-files');
+  result.shines.forEach((count, i) => {
+    const file = add(files, 'div', `dolphin-import-file${count === null ? ' empty' : ''}`);
+    add(file, 'span', null, `File ${'ABC'[i]}`);
+    add(file, 'strong', null, count === null ? '–' : `★ ${count}`);
+    add(file, 'small', null, count === null ? 'Empty' : count === 1 ? 'Shine' : 'Shines');
+  });
+  // Each game only reads its own save: say which switch to flip if it is not the one that starts.
+  const eclipseOn = Boolean(current?.config?.settings?.eclipse);
+  add(card, 'p', 'dolphin-import-next', eclipse === eclipseOn ? 'Start the game to play it.'
+    : eclipse ? 'Turn on Super Mario Eclipse under Gameplay to play it.'
+      : 'Super Mario Eclipse is on under Gameplay: turn it off to play this save.');
+  return card;
+}
+
+async function importDolphinSave(files) {
   if (current?.active) return;
   const resultText = $('dolphin-import-result');
   resultText.textContent = '';
   try {
-    const result = await window.sms.importDolphinSave(file);
-    resultText.textContent = result.cancelled ? 'Import cancelled.' : 'Dolphin save imported. Start the game to play.';
+    const result = await window.sms.importDolphinSave(files);
+    if (result.cancelled) resultText.textContent = 'Import cancelled.';
+    else {
+      const note = document.createElement('p'); note.className = 'dolphin-import-skipped';
+      note.textContent = result.skipped.length ? `Skipped ${result.skipped.map(save => `${save.file} (${save.reason})`).join(', ')}.` : '';
+      resultText.replaceChildren(...result.imported.map(dolphinImportSummary), ...result.skipped.length ? [note] : []);
+    }
     await sync();
-  } catch (error) { resultText.textContent = error.message || String(error); await sync(); }
+  } catch (error) {
+    const note = document.createElement('p'); note.className = 'dolphin-import-error'; note.textContent = errorText(error);
+    resultText.replaceChildren(note); await sync();
+  }
 }
 $('import-dolphin-save').addEventListener('click', () => importDolphinSave());
 // Steam, under the Discord banner: Add to Steam while the launcher can add
@@ -1176,11 +1220,8 @@ for (const type of ['dragleave', 'drop']) dolphinDrop.addEventListener(type, eve
 });
 dolphinDrop.addEventListener('drop', event => {
   if (current?.active) return;
-  if (event.dataTransfer.files.length !== 1) {
-    $('dolphin-import-result').textContent = 'Drop one Dolphin .gci save file at a time.';
-    return;
-  }
-  importDolphinSave(event.dataTransfer.files[0]);
+  if (!event.dataTransfer.files.length) return;
+  importDolphinSave([...event.dataTransfer.files]);
 });
 // Prevent dropped files from navigating away from the launcher.
 for (const type of ['dragover', 'drop']) window.addEventListener(type, event => event.preventDefault());
@@ -1243,7 +1284,7 @@ function renderSaveStates({ states }) {
 
 async function loadSaveStates() {
   try { renderSaveStates(await window.sms.saveStates()); }
-  catch (error) { $('save-state-result').textContent = error.message || String(error); }
+  catch (error) { $('save-state-result').textContent = errorText(error); }
 }
 
 $('import-save-state').addEventListener('click', async () => {
@@ -1252,7 +1293,7 @@ $('import-save-state').addEventListener('click', async () => {
     const result = await window.sms.importSaveState();
     if (!result.cancelled) $('save-state-result').textContent = `Imported ${result.imported} save state${result.imported === 1 ? '' : 's'}.`;
     await loadSaveStates();
-  } catch (error) { $('save-state-result').textContent = error.message || String(error); }
+  } catch (error) { $('save-state-result').textContent = errorText(error); }
 });
 $('open-save-states').addEventListener('click', () => window.sms.openSaveStates().catch(showError));
 for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'skipMovies', 'heatHaze', 'overlay', 'fullscreen', 'fullscreenMode', 'exclusiveResolution', 'display', 'invertCameraX', 'invertCameraY', 'freeCamera', 'cameraSpeed', 'mouseCamera', 'mouseSensitivity', 'msaa', 'fxaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'hudEdges', 'textures', 'textureLoading', 'shaderWarmup', 'cutscenes', 'eclipse', 'autoUpdate', 'shareUsage', 'discordPresence', 'darkMode', 'updateChannel', 'buttonPrompts', 'promptPad', 'hdr', 'hdrCalibration', 'hdrPaperWhite', 'hdrPeak', 'hdrContrast', 'hdrSaturation', 'hdrHighlights', 'fsrMode'])
