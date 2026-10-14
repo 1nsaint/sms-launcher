@@ -382,6 +382,24 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 #pane-saves .dolphin-save-drop { margin: 0; }
 #pane-saves .dolphin-save-drop .helper { display: block; margin: 4px 0 10px; }
 #dolphin-import-result { margin-top: 8px; }
+.dolphin-import-done { padding: 14px 16px; border: 1px solid #bfe3d5; border-radius: 12px; background: #f2fbf7; }
+.dolphin-import-head { display: flex; align-items: center; gap: 10px; }
+.dolphin-import-head > div { flex: 1; display: grid; gap: 2px; min-width: 0; }
+.dolphin-import-head strong { color: #1d4f42; font-size: 13px; }
+.dolphin-import-head small { overflow: hidden; color: #5f7d76; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.dolphin-import-check { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #1f9d70; color: #fff; font-size: 14px; font-weight: 800; }
+.badge.sunshine { background: #fff0d7; color: #95671a; }
+.badge.eclipse { background: #ebe5fa; color: #5b3fa8; }
+.dolphin-import-files { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+.dolphin-import-file { display: grid; justify-items: center; gap: 1px; padding: 8px 6px; border: 1px solid #dcebe6; border-radius: 9px; background: #fff; }
+.dolphin-import-file span { color: #607a80; font-size: 11px; font-weight: 650; }
+.dolphin-import-file strong { color: #c7860d; font-size: 18px; font-variant-numeric: tabular-nums; }
+.dolphin-import-file small { color: #7a8b8f; font-size: 10px; }
+.dolphin-import-file.empty strong { color: #a9b6b9; }
+.dolphin-import-next { margin: 10px 0 0; color: #405a60; font-size: 12px; }
+.dolphin-import-done + .dolphin-import-done { margin-top: 10px; }
+.dolphin-import-skipped { margin: 8px 0 0; color: #607a80; font-size: 12px; }
+.dolphin-import-error { margin: 0; padding: 10px 14px; border: 1px solid #f0d49c; border-radius: 10px; background: #fff7e6; color: #7a5413; font-size: 12px; line-height: 1.45; }
 .save-state-list { display: grid; gap: 8px; max-height: 320px; margin: 8px 0; overflow: auto; }
 .save-state-row { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-top: 1px solid #e3eef0; }
 .save-state-row:first-child { border-top: 0; }
@@ -436,6 +454,17 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 .dark .controls-note h2 { color: #f3e2a8; }
 .dark .dolphin-save-drop { border-color: #4f97a3; background: #10303f; }
 .dark .dolphin-save-drop.drag-over { border-color: #7fd3d6; background: #15414f; }
+.dark .dolphin-import-done { border-color: #2b5a4c; background: #102c2a; }
+.dark .dolphin-import-head strong { color: #c9f0e0; }
+.dark .dolphin-import-head small, .dark .dolphin-import-file span, .dark .dolphin-import-file small { color: #93acb4; }
+.dark .dolphin-import-file { border-color: #26493f; background: #0d2231; }
+.dark .dolphin-import-file strong { color: #ffc75a; }
+.dark .dolphin-import-file.empty strong { color: #4f6b75; }
+.dark .dolphin-import-next { color: #c9dce1; }
+.dark .dolphin-import-skipped { color: #93acb4; }
+.dark .dolphin-import-error { border-color: #6b5420; background: #2e2510; color: #f5cf86; }
+.dark .badge.sunshine { background: #4a3a17; color: #f5cf86; }
+.dark .badge.eclipse { background: #33285a; color: #c9b8ff; }
 .dark .hdr-display { color: #c9dce1; }
 .dark .message { border-color: #2f6a6c; background: #12343f; color: #cdeeee; box-shadow: 0 8px 24px #00000055; }
 .dark .message.error { border-color: #7a3a35; background: #3a1c1c; color: #ffb7ad; }

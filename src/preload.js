@@ -33,10 +33,10 @@ contextBridge.exposeInMainWorld('sms', {
   copyGcAdapterCommand: () => ipcRenderer.invoke('gc-adapter-copy-command'),
   steamOffered: prompt => ipcRenderer.invoke('steam-offered', prompt),
   addToSteam: options => ipcRenderer.invoke('add-to-steam', options),
-  importDolphinSave: file => {
-    const filePath = file ? webUtils.getPathForFile(file) : null;
-    if (file && !filePath) throw new Error('Drop a .gci file from your computer.');
-    return ipcRenderer.invoke('import-dolphin-save', filePath);
+  importDolphinSave: files => {
+    const filePaths = files ? Array.from(files, file => webUtils.getPathForFile(file)) : null;
+    if (filePaths?.some(filePath => !filePath)) throw new Error('Drop .gci files from your computer.');
+    return ipcRenderer.invoke('import-dolphin-save', filePaths);
   },
   restoreSaves: id => ipcRenderer.invoke('restore-saves', id),
   openBackups: () => ipcRenderer.invoke('open-backups'),

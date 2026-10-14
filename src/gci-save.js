@@ -8,19 +8,63 @@ const HEADER = 0x40;
 const BLOCK = 0x2000;
 const NAME = 'super_mario_sunshine';
 const SIZE = 7 * BLOCK;
+// Both keep their main save as super_mario_sunshine. The port stores files of
+// games other than GMSE01 with the game ID first (sms-pc-port's disk_name).
+const GAMES = {
+  GMSE01: { game: 'sunshine', title: 'Super Mario Sunshine', file: NAME },
+  GMSE04: { game: 'eclipse', title: 'Super Mario Eclipse', file: `GMSE04_${NAME}` },
+};
+
+// Eclipse's other card files, beside its game save.
+const SETTINGS = {
+  super_mario_eclipse: "Super Mario Eclipse's settings",
+  better_sunshine_engine: "Super Mario Eclipse's engine settings",
+  better_sunshine_moveset: "Super Mario Eclipse's moveset settings",
+};
+
+// A card file that is not a Sunshine or Eclipse game save; reason is the short form.
+function otherFile(message, reason) {
+  return Object.assign(new Error(message), { code: 'OTHER_FILE', reason });
+}
+
+// Shines in each of the three save files, or null for a file never saved.
+// Sector 0 holds the banner and options; each save file is a pair of sectors
+// (1-2, 3-4, 5-6) and the game uses the intact one written last.
+function fileShines(data, badBlocks) {
+  return [0, 1, 2].map(file => {
+    let newest = null;
+    for (const sector of [1 + 2 * file, 2 + 2 * file]) {
+      const start = sector * BLOCK;
+      if (badBlocks.includes(sector + 1)) continue;
+      if (data.readUInt32BE(start + 4) !== 4) continue; // TFlagManager's save magic
+      const writes = data.readUInt32BE(start);
+      if (!newest || writes > newest.writes) newest = { writes, shines: data.readUInt16BE(start + 0x1c) };
+    }
+    return newest && newest.shines;
+  });
+}
 
 // GCI is a big-endian GameCube directory entry followed by the unchanged
 // card file data. CARDStat is the port's 108-byte, little-endian host struct.
 // Format references: Dolphin's GCMemcard.h and sms-pc-port/platform/card/card.cpp.
 function convertGci(bytes) {
-  if (!Buffer.isBuffer(bytes) || bytes.length !== HEADER + SIZE)
-    throw new Error('Choose a Super Mario Sunshine .gci export (64-byte header and seven save blocks).');
-  if (!bytes.subarray(0, 6).equals(Buffer.from('GMSE01')))
-    throw new Error('This importer supports North American Super Mario Sunshine saves (GMSE01). Export the matching save from Dolphin.');
+  const sizeError = () => new Error('Choose a Super Mario Sunshine .gci export (64-byte header and seven save blocks).');
+  if (!Buffer.isBuffer(bytes) || bytes.length < HEADER) throw sizeError();
+  const game = GAMES[bytes.toString('latin1', 0, 6)];
   const filename = bytes.subarray(8, 40);
   const end = filename.indexOf(0);
-  if (!filename.subarray(0, end < 0 ? 32 : end).equals(Buffer.from(NAME)))
-    throw new Error('This is not the super_mario_sunshine save. Choose the Sunshine game save exported from Dolphin.');
+  const name = filename.subarray(0, end < 0 ? 32 : end).toString('latin1');
+  // A whole export of another card file (its size matches its block count), or
+  // one the size of a game save: say what it is rather than only that it is the wrong size.
+  if (bytes.length === HEADER + SIZE || bytes.length === HEADER + bytes.readUInt16BE(0x38) * BLOCK) {
+    if (game && Object.hasOwn(SETTINGS, name))
+      throw otherFile(`This file holds ${SETTINGS[name]}, not game progress. Super Mario Eclipse keeps its progress in 04-GMSE-super_mario_sunshine.gci.`, 'Eclipse settings, not a game save');
+    if (!game)
+      throw otherFile('This importer supports North American Super Mario Sunshine (01-GMSE) and Super Mario Eclipse (04-GMSE) saves. Export the matching save from Dolphin.', 'not a Sunshine or Eclipse save');
+    if (name !== NAME)
+      throw otherFile('This is not the super_mario_sunshine save. Choose the Sunshine game save exported from Dolphin.', 'not a Sunshine or Eclipse game save');
+  }
+  if (bytes.length !== HEADER + SIZE) throw sizeError();
   if (bytes.readUInt16BE(0x38) !== 7)
     throw new Error('The GCI block count does not match its save data. Export the save again from Dolphin.');
   const icon = bytes.readUInt32BE(0x2c), comment = bytes.readUInt32BE(0x3c);
@@ -41,6 +85,11 @@ function convertGci(bytes) {
     if (data.readUInt16BE(start + BLOCK - 4) !== sum ||
         data.readUInt16BE(start + BLOCK - 2) !== inverted) badBlocks.push(block + 1);
   }
+  const shines = fileShines(data, badBlocks);
+  if (shines.every(count => count === null))
+    throw Object.assign(new Error(`This ${game.title} save has no saved progress in any of its three files.` +
+      (game === GAMES.GMSE01 ? ' If you play Super Mario Eclipse in Dolphin, choose its 04-GMSE-super_mario_sunshine.gci instead.' : '')),
+    { code: 'NO_PROGRESS', reason: `${game.title} save with no saved progress` });
   const stat = Buffer.alloc(0x6c);
   stat.write(NAME, 0);
   stat.writeUInt32LE(data.length, 0x20);
@@ -52,7 +101,7 @@ function convertGci(bytes) {
   stat.writeUInt16LE(bytes.readUInt16BE(0x32), 0x36);
   stat.writeUInt32LE(comment, 0x38);
   // The host card backend leaves derived icon offsets zero when creating saves.
-  return { name: NAME, data, stat, badBlocks };
+  return { name: game.file, game: game.game, title: game.title, data, stat, badBlocks, shines };
 }
 
 function readGci(file) {
@@ -69,6 +118,30 @@ function readGci(file) {
   } finally { fs.closeSync(fd); }
 }
 
+// Reads every .gci among files, a dropped folder standing for the .gci files in
+// it. Among several, other card files and empty saves are skipped (a player's
+// card folder holds both, beside the save with progress); a broken file, or a
+// single file that cannot be imported, stops the import.
+function readGciFiles(files) {
+  files = files.flatMap(file => typeof file === 'string' && fs.statSync(file, { throwIfNoEntry: false })?.isDirectory()
+    ? fs.readdirSync(file).filter(name => /\.gci$/i.test(name)).sort().map(name => path.join(file, name)) : [file]);
+  if (!files.length) throw new Error('That folder has no Dolphin .gci save files.');
+  const found = [], skipped = [];
+  for (const file of files) {
+    try { found.push({ file, converted: readGci(file) }); }
+    catch (error) {
+      if (files.length === 1) throw error;
+      if (!['NO_PROGRESS', 'OTHER_FILE'].includes(error.code))
+        throw new Error(`${path.basename(String(file))}: ${error.message}`, { cause: error });
+      skipped.push({ file: path.basename(file), reason: error.reason });
+    }
+  }
+  if (!found.length) throw new Error('None of these files has Sunshine or Eclipse progress to import. Super Mario Eclipse keeps its progress in 04-GMSE-super_mario_sunshine.gci.');
+  if (new Set(found.map(save => save.converted.name)).size !== found.length)
+    throw new Error('Choose one Dolphin save for each game: these include two saves for the same game.');
+  return { found, skipped };
+}
+
 function importGci(converted, saveDir, backups = saves.backupRoot()) {
   // Complete all validation and a verified backup before changing the card.
   const previous = saves.backupSaves(saveDir, backups, 'before-dolphin-import');
@@ -78,20 +151,20 @@ function importGci(converted, saveDir, backups = saves.backupRoot()) {
   while (entries.length && entries.at(-1) === '') entries.pop();
   if (entries.length > 127 || entries.some(name => name && !/^[A-Za-z0-9_.-]+$/.test(name)))
     throw new Error('The memory card index is invalid. Your current saves have been kept.');
-  if (!entries.includes(NAME)) {
+  if (!entries.includes(converted.name)) {
     const empty = entries.indexOf('');
-    if (empty >= 0) entries[empty] = NAME;
+    if (empty >= 0) entries[empty] = converted.name;
     else {
       if (entries.length >= 127) throw new Error('The memory card has no free file slots.');
-      entries.push(NAME);
+      entries.push(converted.name);
     }
   }
-  const blocks = entries.filter(name => name && name !== NAME).reduce((total, name) => {
+  const blocks = entries.filter(name => name && name !== converted.name).reduce((total, name) => {
     const file = path.join(saveDir, `${name}.dat`);
     return total + (fs.existsSync(file) ? Math.ceil(fs.statSync(file).size / BLOCK) : 0);
   }, 7);
-  if (blocks > 59) throw new Error('The memory card needs seven free blocks for this Sunshine save.');
-  const files = new Map([[`${NAME}.dat`, converted.data], [`${NAME}.stat`, converted.stat],
+  if (blocks > 59) throw new Error('The memory card needs seven free blocks for this save.');
+  const files = new Map([[`${converted.name}.dat`, converted.data], [`${converted.name}.stat`, converted.stat],
     ['index.txt', Buffer.from(`${entries.join('\n')}\n`)]]);
   fs.mkdirSync(saveDir, { recursive: true });
   const staging = fs.mkdtempSync(path.join(saveDir, '.dolphin-import-'));
@@ -120,7 +193,7 @@ function importGci(converted, saveDir, backups = saves.backupRoot()) {
     }
     throw error;
   } finally { fs.rmSync(staging, { recursive: true, force: true }); }
-  return { name: NAME, directory: saveDir, previous: previous.directory || null };
+  return { name: converted.name, directory: saveDir, previous: previous.directory || null };
 }
 
-module.exports = { convertGci, readGci, importGci };
+module.exports = { convertGci, readGci, readGciFiles, importGci };
