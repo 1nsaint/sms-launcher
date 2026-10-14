@@ -52,31 +52,56 @@ function legacyRootFor(userData, platform = process.platform) {
   return path.join(userData, 'build-tools', platformId(platform));
 }
 
-function privateReady(userData, platform = process.platform) {
+// Files each private toolset must keep. Antivirus can delete an executable
+// after unpacking (ninja.exe on Windows), which leaves CMake unable to build;
+// a tool missing any of them is set up again.
+const TOOL_FILES = {
+  darwin: ['clang', 'clang++', 'git', 'cmake', 'ninja', 'python3', 'make', 'patch', 'llvm-objcopy', '7z']
+    .map(name => path.join('env', 'bin', name)),
+  win32: ['usr/bin/bash.exe', 'usr/bin/git.exe', 'usr/bin/patch.exe',
+    'mingw64/bin/gcc.exe', 'mingw64/bin/g++.exe', 'mingw64/bin/clang.exe', 'mingw64/bin/clang++.exe',
+    'mingw64/bin/as.exe', 'mingw64/bin/ld.exe', 'mingw64/bin/objcopy.exe',
+    'mingw64/bin/cmake.exe', 'mingw64/bin/ninja.exe', 'mingw64/bin/python.exe', 'mingw64/bin/7z.exe',
+    'mingw64/bin/SDL2.dll', 'mingw64/include/SDL2/SDL.h',
+    'opt/bin/i686-w64-mingw32-gcc.exe', 'opt/bin/i686-w64-mingw32-g++.exe',
+    'mingw32/bin/SDL2.dll', 'mingw32/include/SDL2/SDL.h'].map(file => path.join('msys64', ...file.split('/'))),
+  linux: [...['g++', 'git', 'cmake', 'python3', 'make', 'patch', 'objcopy', '7z'].map(name => path.join('env', 'bin', name)),
+    path.join('env', 'lib', 'libSDL2-2.0.so.0'),
+    path.join('env', 'targets', 'linux32', 'bin', 'i686-linux-g++'),
+    path.join('env', 'targets', 'linux32', 'graphics', 'usr', 'lib', 'i386-linux-gnu', 'libSDL2-2.0.so.0')]
+};
+
+// The files an installation of this release's tools lacks, or null when
+// there is none (not set up yet, or an older toolset).
+function missingTools(userData, platform = process.platform) {
   const root = rootFor(userData, platform);
-  const marker = path.join(root, 'ready.json');
   try {
-    const installed = JSON.parse(fs.readFileSync(marker, 'utf8'));
-    if (installed.toolset !== toolsetFor(platform)) return false;
+    const installed = JSON.parse(fs.readFileSync(path.join(root, 'ready.json'), 'utf8'));
+    if (installed.toolset !== toolsetFor(platform)) return null;
     const expected = platform === 'darwin' ? macAssets.platforms[process.arch] : assets.platforms[platform];
-    if (expected && installed.archiveSha256 !== expected.sha256) return false;
-    if (platform === 'darwin') return ['clang', 'clang++', 'git', 'cmake', 'ninja', 'python3', 'make', 'patch', 'llvm-objcopy', '7z']
-      .every(name => fs.existsSync(path.join(root, 'env', 'bin', name)));
-    // Antivirus sometimes removes one program (e.g. ninja.exe) from the
-    // tools; checking each one the build runs downloads them again instead.
-    return platform === 'win32'
-      ? ['usr/bin/bash.exe', 'usr/bin/git.exe', 'usr/bin/patch.exe', 'mingw64/bin/g++.exe', 'mingw64/bin/cmake.exe',
-        'mingw64/bin/ninja.exe', 'mingw64/bin/python.exe', 'mingw64/bin/clang.exe', 'mingw64/bin/clang++.exe']
-        .every(file => fs.existsSync(path.join(root, 'msys64', file))) &&
-        fs.existsSync(path.join(root, 'msys64', 'mingw64', 'include', 'SDL2', 'SDL.h')) &&
-        fs.existsSync(path.join(root, 'msys64', 'opt', 'bin', 'i686-w64-mingw32-g++.exe')) &&
-        fs.existsSync(path.join(root, 'msys64', 'mingw32', 'include', 'SDL2', 'SDL.h'))
-      : ['g++', 'git', 'cmake', 'python3', 'make', 'patch', 'objcopy', '7z']
-        .every(name => fs.existsSync(path.join(root, 'env', 'bin', name))) &&
-        fs.existsSync(path.join(root, 'env', 'lib', 'libSDL2-2.0.so.0')) &&
-        fs.existsSync(path.join(root, 'env', 'targets', 'linux32', 'bin', 'i686-linux-g++')) &&
-        fs.existsSync(path.join(root, 'env', 'targets', 'linux32', 'graphics', 'usr', 'lib', 'i386-linux-gnu', 'libSDL2-2.0.so.0'));
-  } catch (_) { return false; }
+    if (expected && installed.archiveSha256 !== expected.sha256) return null;
+  } catch (_) { return null; }
+  return (TOOL_FILES[platform] || TOOL_FILES.linux).filter(file => !fs.existsSync(path.join(root, file)));
+}
+
+function privateReady(userData, platform = process.platform) {
+  return missingTools(userData, platform)?.length === 0;
+}
+
+// Names the deleted files, and on Windows the likely cause and the folder to exclude.
+function missingToolsMessage(userData, missing, platform = process.platform) {
+  const names = missing.slice(0, 4).map(file => path.basename(file)).join(', ') +
+    (missing.length > 4 ? ` and ${missing.length - 4} more` : '');
+  return `The build tools are missing ${names}.` + (platform === 'win32'
+    ? ` Antivirus usually deletes them: restore them from its quarantine, or exclude ${path.dirname(rootFor(userData, platform))} from scanning.`
+    : '');
+}
+
+// The error to show for a failed build when the tools lost files since setup.
+function deletedToolsError(userData, platform = process.platform) {
+  const missing = missingTools(userData, platform);
+  return missing?.length ? new Error(`${missingToolsMessage(userData, missing, platform)} Then try again: ` +
+    'the launcher sets the build tools up again.') : null;
 }
 
 function commandWorks(command, args = [], env = process.env) {
@@ -323,6 +348,8 @@ async function prepare(userData, { platform = process.platform, run, progress = 
     if (!found.appleReady) throw new Error(found.message);
   }
   if (!forcePrivate && privateReady(userData, platform)) return status(userData, platform);
+  const deleted = missingTools(userData, platform);
+  if (deleted?.length) progress(null, `${missingToolsMessage(userData, deleted, platform)} Setting them up again.`);
   source = source || assetFor(platform);
   if (!/^[a-f0-9]{64}$/.test(source.sha256) || !/^[a-zA-Z0-9._-]+\.tar\.gz$/.test(source.name))
     throw new Error('Invalid build tool archive information.');
@@ -377,7 +404,9 @@ async function prepare(userData, { platform = process.platform, run, progress = 
     fs.writeFileSync(path.join(root, 'ready.json'), JSON.stringify({ toolset: toolsetFor(platform), platform,
       archiveSha256: source.sha256 }), { mode: 0o600 });
     progress(null, 'Checking build tools…');
-    if (!privateReady(userData, platform)) throw new Error('Downloaded build tools are incomplete or do not match this release.');
+    const missing = missingTools(userData, platform);
+    if (!missing) throw new Error('Downloaded build tools do not match this release.');
+    if (missing.length) throw new Error(missingToolsMessage(userData, missing, platform));
     const env = environment(userData, process.env, platform);
     const bin = platform === 'win32' ? path.join(root, 'msys64', 'mingw64', 'bin') : path.join(root, 'env', 'bin');
     if (!commandWorks(path.join(bin, platform === 'win32' ? 'g++.exe' : platform === 'darwin' ? 'clang++' : 'g++'), ['--version'], env))
@@ -399,5 +428,5 @@ async function prepare(userData, { platform = process.platform, run, progress = 
   }
 }
 
-module.exports = { TOOLSET, toolsetFor, platformId, rootFor, legacyRootFor, privateReady, systemReady, status, environment, environmentAtRoot, check,
+module.exports = { TOOLSET, toolsetFor, platformId, rootFor, legacyRootFor, privateReady, missingTools, deletedToolsError, systemReady, status, environment, environmentAtRoot, check,
   fetchVerified, hashFile, assetFor, prepare, unpackNative, renameRetrying };
