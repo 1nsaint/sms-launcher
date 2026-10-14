@@ -6,6 +6,18 @@
   },
   "releases": [
     {
+      "version": "0.1.60",
+      "date": "2026-10-14",
+      "launcher": [],
+      "game": {
+        "version": "2026.10.14.1",
+        "commit": "c8fb4a3e81a2176588574395302ecf862f9a440a",
+        "changes": [
+          "Fixed the glove in the save state menu pointing away from the selected state instead of at it."
+        ]
+      }
+    },
+    {
       "version": "0.1.59",
       "date": "2026-10-13",
       "launcher": [
