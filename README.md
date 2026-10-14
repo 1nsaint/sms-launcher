@@ -133,6 +133,18 @@ To manage updates yourself, turn off **Update automatically** in **Settings → 
 
 After the launcher updates, its changelog opens once to show what changed in the launcher and the game since you last opened it. Open it any time with the changelog button beside the Settings cog.
 
+### Join the Beta
+
+Beta has the newest launcher and the newest game before they are released. It is rebuilt whenever either changes, so you get fixes and new features sooner, but it is for testing and may break. What Beta has that no release has yet is at the top of the changelog.
+
+1. Open **Settings** (the cog), then the **Launcher** tab.
+2. Under **Updates**, set **Launcher updates** to **Beta**.
+3. The launcher downloads the Beta straight away. Choose **Install now** in the status bar, or it installs when you quit.
+
+Once you're on Beta, new Betas arrive like any other launcher update. If Beta has a newer game than yours, the main button becomes **Update & play**.
+
+To leave, set **Launcher updates** back to **Stable**: the launcher goes back to the latest release the same way. The same list offers pull request previews, single changes being tested before they reach Beta; they're only there while that pull request is open.
+
 ### Start the game from Steam
 
 The [Add to Steam](#add-to-steam) banner sets this up for you when you turn on **Skip Launcher**. To go straight into the game from Steam or another shortcut yourself, add `--play` to the launcher's launch options (in Steam: Properties → Launch Options; on Linux keep `--no-sandbox` too, as in `--no-sandbox --play`). The game starts with your launcher settings, without the launcher's window, and Steam shows it running until you quit. Your saves are backed up before and after, as they are when you press Play.
@@ -251,7 +263,7 @@ Packages contain the launcher. Game source, disc images, optional mods, compiled
 
 The separate **Smoke test build tools** workflow downloads checksum-verified tool archives and compiles the exact source in `src/game-release.json` without a ROM. It checks both 32-bit and 64-bit games on Windows and Linux, and 64-bit games on Intel and Apple Silicon Mac hosts. These checks are a required release gate; they do not publish game binaries.
 
-The **Refresh Beta** workflow keeps the Beta update channel current: every push to `main` rebuilds it, and every hour it is rebuilt if the game's branch has new commits. Beta uses the newest commit of the game's branch, not the commit `src/game-release.json` pins for the next Stable release. To rebuild it right away, run **Refresh Beta** in GitHub Actions (or `gh workflow run refresh-beta.yml`).
+The **Refresh Beta** workflow keeps the Beta update channel current: every push to `main` rebuilds it, and every hour it is rebuilt if the game's branch or the launcher's build has new commits. The hourly check skips launcher commits that change nothing packaged into the launcher (anything outside `src/`, `build/`, `package.json`, `package-lock.json`, `changelog.json` and the packaged scripts), such as docs, tests and workflows. To push such a commit without rebuilding Beta at all, put `[skip ci]` in its message. Beta uses the newest commit of the game's branch, not the commit `src/game-release.json` pins for the next Stable release. To rebuild it right away, run **Refresh Beta** in GitHub Actions (or `gh workflow run refresh-beta.yml`).
 
 Each published Beta is announced in Discord when the `DISCORD_BETA_WEBHOOK` repository secret holds a channel webhook URL (in Discord: the channel's **Edit Channel → Integrations → Webhooks → New Webhook → Copy Webhook URL**, then `gh secret set DISCORD_BETA_WEBHOOK`). The message has the launcher and game versions, links to the release and both commits, and the notes added to Beta in `changelog.json` since the last Beta (all of them if the last Beta's notes can't be read). Without the secret, or if Discord is unreachable, Beta still publishes.
 

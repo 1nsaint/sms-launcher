@@ -57,7 +57,7 @@ function message({ launcherVersion, launcherSha, game, repository, beta, previou
       title: `Beta ${launcherVersion} is out`,
       url: `${repo}/releases/tag/beta`,
       color: COLOR,
-      description: 'Beta launchers update to it automatically. To join, choose **Beta** under Settings → Manage game → Launcher updates. Beta builds are for testing and may break.',
+      description: 'Beta launchers update to it automatically. To join, open Settings → Launcher and choose **Beta** under **Launcher updates**. Beta builds are for testing and may break.',
       fields,
       timestamp: now.toISOString()
     }]
