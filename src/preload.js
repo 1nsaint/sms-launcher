@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('sms', {
   clean: () => ipcRenderer.invoke('clean'),
   backupSaves: () => ipcRenderer.invoke('backup-saves'),
   steamStatus: () => ipcRenderer.invoke('steam-status'),
+  gcAdapterStatus: () => ipcRenderer.invoke('gc-adapter-status'),
+  allowGcAdapter: () => ipcRenderer.invoke('gc-adapter-allow'),
+  copyGcAdapterCommand: () => ipcRenderer.invoke('gc-adapter-copy-command'),
   steamOffered: prompt => ipcRenderer.invoke('steam-offered', prompt),
   addToSteam: options => ipcRenderer.invoke('add-to-steam', options),
   importDolphinSave: file => {

@@ -27,7 +27,7 @@ function showSettingsTab(name) {
     $(`tab-${tab}`).classList.toggle('active', tab === name);
   }
   $('settings-panes').scrollTop = 0;
-  if (name === 'controls') renderBindings();
+  if (name === 'controls') { renderBindings(); loadGcAdapter(); }
   if (name === 'launcher') loadUpdateChannels();
   if (name === 'saves') loadSaveStates();
 }
@@ -226,6 +226,43 @@ function renderBindings() {
     return row;
   }));
 }
+
+// GameCube adapter in Wii U mode (src/gc-adapter.js): shown while one is
+// plugged in. The game reads it directly, so the controller bindings above and
+// the launcher's own menus don't see it. On Linux the game needs a udev rule to
+// open it; Allow access installs one.
+function renderGcAdapter(status, message = '') {
+  $('gc-adapter-note').hidden = !status?.present;
+  if (!status?.present) return;
+  const ready = 'The game reads it directly: plug the controller into any port (the first plugged port is player 1). It plays as on a GameCube, so the controller buttons set here and the launcher\'s menus don\'t apply to it.';
+  $('gc-adapter-text').textContent = status.readable ? `Plugged in and ready. ${ready}`
+    : status.fix === 'udev' ? 'Plugged in, but Linux doesn\'t let the game open it yet. Allow access adds a udev rule for it (as Dolphin needs), which asks for your password.'
+    : status.fix === 'driver' ? 'Plugged in, but Windows has no working driver for it. Unplug it and plug it in again; if that doesn\'t help, choose USB Input Device for WUP-028 in Device Manager.'
+    : 'Plugged in, but the game needs libusb to read it on a Mac. Install it with Homebrew: brew install libusb.';
+  $('gc-adapter-actions').hidden = status.readable;
+  $('gc-adapter-allow').hidden = status.fix !== 'udev';
+  $('gc-adapter-copy').hidden = status.fix !== 'udev';
+  $('gc-adapter-helper').textContent = message;
+}
+async function loadGcAdapter(message) {
+  try { renderGcAdapter(await window.sms.gcAdapterStatus(), message); }
+  catch (error) { renderGcAdapter({ present: true, readable: false }, error.message || String(error)); }
+}
+$('gc-adapter-check').addEventListener('click', () => loadGcAdapter());
+$('gc-adapter-allow').addEventListener('click', async () => {
+  $('gc-adapter-allow').disabled = true;
+  try {
+    const result = await window.sms.allowGcAdapter();
+    renderGcAdapter(result.status, result.ok
+      ? (result.status.readable ? 'Access allowed.' : 'The rule is installed. Unplug the adapter and plug it in again, then choose Check again.')
+      : `Not changed: ${result.reason}. Copy the terminal command and run it in a terminal instead.`);
+  } catch (error) { $('gc-adapter-helper').textContent = error.message || String(error); }
+  finally { $('gc-adapter-allow').disabled = false; }
+});
+$('gc-adapter-copy').addEventListener('click', async () => {
+  await window.sms.copyGcAdapterCommand();
+  $('gc-adapter-helper').textContent = 'Copied. Paste it into a terminal (Konsole on a Steam Deck), then unplug the adapter, plug it in again and choose Check again.';
+});
 
 $('reset-bindings').addEventListener('click', () => {
   stopCapture();
