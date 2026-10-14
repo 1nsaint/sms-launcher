@@ -143,7 +143,7 @@ Beta has the newest launcher and the newest game before they are released. It is
 
 Once you're on Beta, new Betas arrive like any other launcher update. If Beta has a newer game than yours, the main button becomes **Update & play**.
 
-To leave, set **Launcher updates** back to **Stable**: the launcher goes back to the latest release the same way. The same list offers pull request previews, single changes being tested before they reach Beta; they're only there while that pull request is open.
+To leave, set **Launcher updates** back to **Stable**: the launcher goes back to the latest release the same way. The portable Windows launcher (the `win-portable.exe`) never updates itself, so Settings has no **Launcher updates** for it. To try Beta with it, download the `win-portable.exe` from the [Beta release](https://github.com/chasem-dev/sms-launcher/releases/tag/beta) into the same folder as your portable launcher, so it uses the same `SMS-Launcher-Portable` folder with your settings and setup, and open that one. Download a new one for each Beta; to go back, open your Stable `.exe` again. The same list offers pull request previews, single changes being tested before they reach Beta; they're only there while that pull request is open.
 
 ### Start the game from Steam
 
