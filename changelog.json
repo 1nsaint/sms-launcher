@@ -7,7 +7,8 @@
       "Fixed setup on Windows stopping with \"operation not permitted\" while the build tools were moved into place, usually because antivirus was still scanning them.",
       "Fixed Super Mario Eclipse with a language other than English chosen: Eclipse now always plays in English, and Settings greys out Language while Eclipse is on. Your language comes back when you turn Eclipse off.",
       "Import a Dolphin save now takes Super Mario Eclipse saves (04-GMSE-super_mario_sunshine.gci) and puts them in Eclipse's save. You can drop several saves, or the whole Dolphin memory card folder, at once: Eclipse's settings files and saves with no progress are skipped instead of replacing yours, and after importing, Settings → Saves shows which game each save is for and the Shines in each file.",
-      "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before."
+      "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before.",
+      "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for."
     ],
     "game": [
       "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",

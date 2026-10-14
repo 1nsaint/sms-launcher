@@ -255,9 +255,20 @@ function isSteamOS({ osRelease = '', vendor = '' } = {}) {
   return value('ID') === 'steamos' || value('ID_LIKE').split(/\s+/).includes('steamos') || /^valve\b/i.test(vendor.trim());
 }
 
-function writeAtomically(file, data, files) {
+// File permissions to keep: the file's own, or else `mode`.
+function modeOf(file, files, mode = null) {
+  try { return files.statSync(file).mode & 0o7777; } catch { return mode; }
+}
+
+// Writes through a new file renamed into place, keeping the old file's
+// permissions (or `mode` for a new one). NonSteamLaunchers marks
+// shortcuts.vdf executable and, finding it not executable, writes an empty
+// list over it, so a new file without that would cost the player their games.
+function writeAtomically(file, data, files, mode = null) {
   const temporary = `${file}.sms-launcher-new`;
+  const keep = modeOf(file, files, mode);
   files.writeFileSync(temporary, data);
+  if (keep !== null) files.chmodSync(temporary, keep);
   files.renameSync(temporary, file);
 }
 
@@ -280,18 +291,19 @@ function checkedVdf(parsed, others, count) {
 // The copy of shortcuts.vdf made before a change. The first is
 // shortcuts.vdf.sms-launcher-backup and is never replaced; later ones are named
 // after the time, so choosing Add to Steam again keeps the copy from before.
-// A list that already has a copy isn't saved again.
+// A list that already has a copy isn't saved again. Copies keep the list's
+// permissions, so one put back by renaming it works as the list did.
 function backUp(vdf, data, files, now = new Date()) {
   const first = `${vdf}.sms-launcher-backup`;
-  try { files.writeFileSync(first, data, { flag: 'wx' }); return first; } catch (error) { if (error.code !== 'EEXIST') throw error; }
+  const mode = modeOf(vdf, files);
+  const save = (file, flag = 'w') => { files.writeFileSync(file, data, { flag }); if (mode !== null) files.chmodSync(file, mode); return file; };
+  try { return save(first, 'wx'); } catch (error) { if (error.code !== 'EEXIST') throw error; }
   let dated = [];
   try { dated = files.readdirSync(path.dirname(vdf)).filter(name => name.startsWith(`${path.basename(first)}-`)).sort(); } catch { /* none yet */ }
   for (const copy of [first, ...dated.map(name => path.join(path.dirname(vdf), name))]) {
     try { if (files.readFileSync(copy).equals(data)) return copy; } catch { /* compared with the next */ }
   }
-  const file = `${first}-${now.toISOString().replace(/[:.]/g, '-')}`;
-  files.writeFileSync(file, data);
-  return file;
+  return save(`${first}-${now.toISOString().replace(/[:.]/g, '-')}`);
 }
 
 // How many non-Steam games a shortcuts.vdf lists, or null when it can't be read.
@@ -314,7 +326,7 @@ function snapshotShortcuts({ root, backUp: save = true, files = fs }) {
     try { data = files.readFileSync(vdf); } catch { return []; }
     let backup = null;
     try { if (save) backup = backUp(vdf, data, files); } catch { /* the snapshot in memory still guards the write */ }
-    return [{ account, data, count: shortcutCount(data), backup }];
+    return [{ account, data, count: shortcutCount(data), mode: modeOf(vdf, files), backup }];
   });
 }
 
@@ -332,7 +344,7 @@ function stopIfSteamLostGames({ snapshot, account, vdf, data, files }) {
   const now = data ? shortcutCount(data) : 0;
   if (now !== null && now >= earlier.count) return;
   if (data) backUp(vdf, data, files);
-  writeAtomically(vdf, earlier.data, files);
+  writeAtomically(vdf, earlier.data, files, earlier.mode);
   const error = new Error(`Steam lost ${now === null ? 'its list of' : `${earlier.count - now} of the ${earlier.count}`} non-Steam games as it closed, so Add to Steam stopped and put back the list from before Steam closed. Open Steam and check your non-Steam games are there, then choose Add to Steam again.`);
   error.restored = { account, before: earlier.count, after: now };
   throw error;
