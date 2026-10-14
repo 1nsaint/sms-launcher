@@ -221,8 +221,7 @@ function fetchVerified(url, destination, expected, onProgress = () => {}, redire
           fs.rmSync(part, { force: true });
           return reject(new Error('Downloaded build tools failed their SHA-256 check.'));
         }
-        fs.renameSync(part, destination);
-        resolve(destination);
+        renameRetrying(part, destination).then(() => resolve(destination), reject);
       });
       response.pipe(output);
     });
@@ -253,6 +252,28 @@ function assetFor(platform = process.platform, arch = process.arch) {
 // goes, which drives the same "N files" progress as the JavaScript path. A tar
 // that names no file for stallMs is stopped, so a stuck extraction ends with an
 // explanation instead of staying on "Unpacking build tools…" for good.
+// Windows: antivirus and the search indexer open newly written files for a
+// moment, and a folder holding one can't be renamed then (EPERM, EACCES or
+// EBUSY). Fast unpacking with tar.exe renames straight after writing tens of
+// thousands of files, so keep trying for about a minute, as npm does.
+const RENAME_BUSY = new Set(['EPERM', 'EACCES', 'EBUSY']);
+async function renameRetrying(from, to, { platform = process.platform, attempts = 40, delayMs = 250,
+  rename = fs.renameSync, sleep = ms => new Promise(resolve => setTimeout(resolve, ms)) } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try { return rename(from, to); }
+    catch (error) {
+      if (platform !== 'win32' || !RENAME_BUSY.has(error.code)) throw error;
+      if (attempt >= attempts) {
+        error.message = `Windows kept ${path.basename(from)} in use, so it couldn't be moved into place ` +
+          `(${error.code}). Antivirus scanning new files usually causes this: try again, or exclude ` +
+          `${path.dirname(to)} from scanning. (${error.message})`;
+        throw error;
+      }
+      await sleep(Math.min(delayMs * attempt, 2000));
+    }
+  }
+}
+
 function unpackNative(tarPath, args, progress, { stallMs = 5 * 60 * 1000 } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(tarPath, args, { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
@@ -334,8 +355,8 @@ async function prepare(userData, { platform = process.platform, run, progress = 
       });
     }
     if (!fs.existsSync(path.join(staging, top))) throw new Error('Build tool archive is incomplete.');
-    if (fs.existsSync(root)) { fs.renameSync(root, previous); keptPrevious = true; }
-    fs.renameSync(staging, root);
+    if (fs.existsSync(root)) { await renameRetrying(root, previous); keptPrevious = true; }
+    await renameRetrying(staging, root);
     replaced = true;
     if (platform !== 'win32') {
       const prefix = path.join(root, 'env');
@@ -367,7 +388,7 @@ async function prepare(userData, { platform = process.platform, run, progress = 
     return status(userData, platform);
   } catch (error) {
     if (replaced) await fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
-    if (keptPrevious) fs.renameSync(previous, root);
+    if (keptPrevious) await renameRetrying(previous, root);
     throw error;
   } finally {
     await fs.promises.rm(staging, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
@@ -376,4 +397,4 @@ async function prepare(userData, { platform = process.platform, run, progress = 
 }
 
 module.exports = { TOOLSET, toolsetFor, platformId, rootFor, legacyRootFor, privateReady, systemReady, status, environment, environmentAtRoot, check,
-  fetchVerified, hashFile, assetFor, prepare, unpackNative };
+  fetchVerified, hashFile, assetFor, prepare, unpackNative, renameRetrying };
