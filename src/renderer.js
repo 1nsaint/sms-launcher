@@ -53,6 +53,21 @@ function renderSoftTrigger() { $('softTrigger-value').textContent = `${$('softTr
 $('softTrigger').addEventListener('input', renderSoftTrigger);
 $('softTrigger').addEventListener('change', () => saveSettings());
 
+// Rumble strength: the controller rumbles as the slider moves, as the game would (src/rumble.js).
+const rumblePreview = window.smsRumble.createPreview({ getGamepads: () => navigator.getGamepads?.() });
+let rumbleTimer = 0;
+function renderRumbleStrength() {
+  const value = Number($('rumbleStrength').value);
+  $('rumbleStrength-value').textContent = value ? `${value}%` : 'Off';
+}
+$('rumbleStrength').addEventListener('input', () => {
+  renderRumbleStrength();
+  // Plays once the slider rests for a moment, so dragging it doesn't stack previews.
+  clearTimeout(rumbleTimer);
+  rumbleTimer = setTimeout(() => rumblePreview.play(Number($('rumbleStrength').value)), 120);
+});
+$('rumbleStrength').addEventListener('change', () => saveSettings());
+
 function bindingNote() {
   return bindingMode === 'controller'
     ? 'Choose Change, then press a button on your controller, or hold two together. Esc cancels. The sticks always move the sticks.'
@@ -569,6 +584,9 @@ function refresh(data) {
   $('softTrigger').value = String(config.settings.softTrigger ?? 40);
   renderSoftTrigger();
   $('softTrigger').disabled = Boolean(data.active);
+  $('rumbleStrength').value = String(config.settings.rumbleStrength ?? 100);
+  renderRumbleStrength();
+  $('rumbleStrength').disabled = Boolean(data.active);
   // Steam Input can sit between the controller and the game on SteamOS / Steam Deck (Linux).
   $('steamos-note').hidden = data.platform.id !== 'linux';
   if (!capture) renderBindings();
@@ -824,7 +842,8 @@ function settingsValue() {
     invertCameraX: $('invertCameraX').checked, invertCameraY: $('invertCameraY').checked, hudEdges: $('hudEdges').checked, textures: $('textures').checked, cutscenes: $('cutscenes').checked,
     textureLoading: $('textureLoading').value, shaderWarmup: $('shaderWarmup').checked,
     eclipse: $('eclipse').checked, autoUpdate: $('autoUpdate').checked, shareUsage: $('shareUsage').checked, discordPresence: $('discordPresence').checked, darkMode: $('darkMode').checked, updateChannel: $('updateChannel').value,
-    keyBindings, padBindings, softTrigger: Number($('softTrigger').value), buttonPrompts: $('buttonPrompts').value,
+    keyBindings, padBindings, softTrigger: Number($('softTrigger').value),
+    rumbleStrength: Number($('rumbleStrength').value), buttonPrompts: $('buttonPrompts').value,
     promptPad: $('promptPad').value, graphicsPreset: $('graphicsPreset').value,
     hdr: $('hdr').checked, hdrCalibration: $('hdrCalibration').checked, hdrPaperWhite: Number($('hdrPaperWhite').value),
     hdrPeak: Number($('hdrPeak').value), hdrContrast: Number($('hdrContrast').value),

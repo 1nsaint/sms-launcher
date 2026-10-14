@@ -164,12 +164,13 @@
               <div id="binding-list" class="binding-list"></div>
               <div class="actions"><button class="subtle" id="reset-bindings">Reset all to defaults</button><span id="binding-note" class="helper" role="status">Choose Change, then press a key. Esc cancels.</span></div>
             </div>
-            <h2 class="group-title">Prompts and triggers</h2>
+            <h2 class="group-title">Prompts, triggers and rumble</h2>
             <div class="settings-group">
               <label class="field"><span>Button prompts<small>The buttons shown in the game's text. Original keeps the game's own; Automatic switches between keyboard and controller as you play.</small></span><select id="buttonPrompts"></select></label>
               <label class="field" id="promptPad-field" hidden><span>Controller prompts</span><select id="promptPad"></select></label>
               <div id="prompt-preview" class="prompt-preview" aria-label="Button prompt preview"></div>
               <label class="field range-field"><span><strong>Soft press depth</strong><output id="softTrigger-value" for="softTrigger">40%</output><small>How far Soft L and Soft R press the trigger: a light press without the click, such as spraying FLUDD on the move.</small></span><input id="softTrigger" type="range" min="5" max="95" step="5" aria-label="Soft press depth"></label>
+              <label class="field range-field"><span><strong>Rumble strength</strong><output id="rumbleStrength-value" for="rumbleStrength">100%</output><small>How hard your controller rumbles. 0% turns rumble off; above 100% light rumbles feel stronger. Your controller rumbles as you move the slider.</small></span><input id="rumbleStrength" type="range" min="0" max="200" step="10" aria-label="Rumble strength"></label>
             </div>
             <section id="steamos-note" class="controls-note" aria-label="SteamOS and Steam Deck" hidden><h2>On SteamOS or a Steam Deck?</h2><p>Steam Input can translate your controller into its own layout before the game sees it. That can make buttons do two things, or make the controller buttons you set here not apply. If that happens, turn Steam Input off for SMS Launcher: in Steam, open its <strong>Properties → Controller</strong> and choose <strong>Disable Steam Input</strong>. Then restart the launcher.</p><p class="helper">Playing in Desktop Mode with the launcher added to Steam as a non-Steam game is where this usually shows up.</p></section>
           </section>
@@ -283,6 +284,7 @@
   <script src="presets.js"></script>
   <script src="activity-log.js"></script>
   <script src="gamepad-nav.js"></script>
+  <script src="rumble.js"></script>
   <script src="renderer.js"></script>
 </body>
 </html>

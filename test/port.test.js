@@ -493,6 +493,16 @@ test('soft L / R bindings start unbound and their depth reaches the game as SMS_
   assert.deepEqual(port.normalizeSettings({ keyBindings: { R_SOFT: [] } }).keyBindings, {});
 });
 
+test('rumble strength reaches the game as SMS_RUMBLE_STRENGTH, and 0 turns rumble off', () => {
+  assert.equal(port.normalizeSettings({}).rumbleStrength, 100);
+  assert.equal(port.normalizeSettings({ rumbleStrength: 500 }).rumbleStrength, 200);
+  assert.equal(port.normalizeSettings({ rumbleStrength: 'strong' }).rumbleStrength, 100);
+  const env = settings => port.buildEnvironment(port.normalizeSettings(settings), '/my/disc.iso', '/port');
+  assert.deepEqual([env({}).SMS_RUMBLE, env({}).SMS_RUMBLE_STRENGTH], ['1', '100']);
+  assert.deepEqual([env({ rumbleStrength: 150 }).SMS_RUMBLE, env({ rumbleStrength: 150 }).SMS_RUMBLE_STRENGTH], ['1', '150']);
+  assert.equal(env({ rumbleStrength: 0 }).SMS_RUMBLE, '0');
+});
+
 test('settings keep only changed, known controller buttons', () => {
   assert.deepEqual(port.normalizeSettings({}).padBindings, {});
   assert.deepEqual(port.normalizeSettings({ padBindings: { A: ['PAD_Y'], B: ['PAD_B'], JUMP: ['PAD_A'], X: ['NOPE'] } }).padBindings,

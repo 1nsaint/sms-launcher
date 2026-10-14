@@ -144,6 +144,8 @@ function normalizeSettings(input = {}, platform = process.platform) {
     padBindings: bindings.normalizePads(input.padBindings),
     // How far the soft L / R bindings press the trigger, in percent (the game caps it below the click).
     softTrigger: numberSetting(input.softTrigger, 40, 5, 95),
+    // Controller rumble in percent: 0 turns it off, below 100 is gentler, above 100 the game runs the motor more often.
+    rumbleStrength: numberSetting(input.rumbleStrength, 100, 0, 200),
     updateChannel: normalizeChannel(input.updateChannel)
   };
   // The graphics preset chosen (src/presets.js), while the picture settings still match it; else Custom.
@@ -293,6 +295,8 @@ function buildEnvironment(settings, disc, root) {
     SMS_SKIP_MOVIES: settings.skipMovies ? '1' : '0',
     SMS_LANGUAGE: LANGUAGES.includes(settings.language) ? settings.language : 'en',
     SMS_SOFT_TRIGGER: String(settings.softTrigger ?? 40),
+    SMS_RUMBLE: settings.rumbleStrength === 0 ? '0' : '1',
+    SMS_RUMBLE_STRENGTH: String(settings.rumbleStrength ?? 100),
     SMS_HEAT_HAZE: settings.heatHaze === false ? '0' : '1',
     SMS_BUTTON_PROMPTS: prompts.normalizeStyle(settings.buttonPrompts),
     SMS_BUTTON_PROMPT_PAD: prompts.normalizePad(settings.promptPad),
