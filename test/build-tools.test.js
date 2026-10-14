@@ -242,3 +242,34 @@ test('native unpacking reports what a failing tar said', posixOnly, async t => {
   fs.writeFileSync(fake, '#!/bin/sh\necho "tar: msys64/x: Path too long" >&2\nexit 2\n', { mode: 0o755 });
   await assert.rejects(tools.unpackNative(fake, [], () => {}), /failed \(tar exit code 2\)\. tar: msys64\/x: Path too long/);
 });
+
+test('Windows retries a rename that antivirus blocks for a moment', async () => {
+  let calls = 0;
+  const waits = [];
+  const busy = code => Object.assign(new Error(`${code}: operation not permitted, rename`), { code });
+  const rename = () => { if (++calls < 4) throw busy(calls === 2 ? 'EBUSY' : 'EPERM'); };
+  await tools.renameRetrying('a', 'b', { platform: 'win32', rename, sleep: async ms => { waits.push(ms); } });
+  assert.equal(calls, 4);
+  assert.deepEqual(waits, [250, 500, 750]);
+});
+
+test('a rename that stays blocked says why; other errors and systems fail at once', async () => {
+  const sleep = async () => {};
+  const blocked = () => { throw Object.assign(new Error('EPERM: operation not permitted'), { code: 'EPERM' }); };
+  await assert.rejects(tools.renameRetrying('C:\\tools\\.unpack-x', 'C:\\tools\\windows-x64', { platform: 'win32', attempts: 3, rename: blocked, sleep }),
+    error => error.code === 'EPERM' && /couldn't be moved into place \(EPERM\)\. Antivirus/.test(error.message));
+  let calls = 0;
+  const missing = () => { calls++; throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); };
+  await assert.rejects(tools.renameRetrying('a', 'b', { platform: 'win32', rename: missing, sleep }), { code: 'ENOENT' });
+  await assert.rejects(tools.renameRetrying('a', 'b', { platform: 'linux', rename: blocked, sleep }), { code: 'EPERM' });
+  assert.equal(calls, 1);
+});
+
+test('a real rename goes through on the first try', async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'rename-'));
+  try {
+    fs.mkdirSync(path.join(dir, 'from'));
+    await tools.renameRetrying(path.join(dir, 'from'), path.join(dir, 'to'));
+    assert.ok(fs.existsSync(path.join(dir, 'to')) && !fs.existsSync(path.join(dir, 'from')));
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
