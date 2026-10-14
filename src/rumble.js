@@ -9,7 +9,7 @@
   // A full-power rumble, then a light one: lower strengths soften both, higher ones fill in the light one.
   const PREVIEW = [{ power: 1, frames: 8 }, { power: 0, frames: 4 }, { power: 0.4, frames: 18 }];
 
-  // The motor's magnitude (0 to 1) on each game frame of the given rumbles at strength (percent).
+  // The motor's magnitude (0 to 1) on each game frame of the given rumbles at the game's strength (percent, 100 the console's).
   function pattern(strength, rumbles = PREVIEW) {
     const percent = Math.max(0, Math.min(200, Number(strength) || 0));
     const magnitude = Math.min(percent, 100) / 100;

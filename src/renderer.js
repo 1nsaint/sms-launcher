@@ -64,7 +64,8 @@ $('rumbleStrength').addEventListener('input', () => {
   renderRumbleStrength();
   // Plays once the slider rests for a moment, so dragging it doesn't stack previews.
   clearTimeout(rumbleTimer);
-  rumbleTimer = setTimeout(() => rumblePreview.play(Number($('rumbleStrength').value)), 120);
+  // The slider's 50% is the game's 100% (src/port.js, rumbleGameStrength).
+  rumbleTimer = setTimeout(() => rumblePreview.play(Number($('rumbleStrength').value) * 2), 120);
 });
 $('rumbleStrength').addEventListener('change', () => saveSettings());
 
@@ -584,7 +585,7 @@ function refresh(data) {
   $('softTrigger').value = String(config.settings.softTrigger ?? 40);
   renderSoftTrigger();
   $('softTrigger').disabled = Boolean(data.active);
-  $('rumbleStrength').value = String(config.settings.rumbleStrength ?? 100);
+  $('rumbleStrength').value = String(config.settings.rumbleStrength ?? 50);
   renderRumbleStrength();
   $('rumbleStrength').disabled = Boolean(data.active);
   // Steam Input can sit between the controller and the game on SteamOS / Steam Deck (Linux).
