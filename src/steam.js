@@ -194,9 +194,10 @@ function findSteam(roots, files = fs) {
 }
 
 // The Steam account to add the launcher for: the one signed in most recently,
-// from config/loginusers.vdf (marked MostRecent, or else with the latest
-// Timestamp, as Steam writes it now), or every account on this computer when
-// that file lists none of them.
+// from config/loginusers.vdf (the latest Timestamp, or else marked MostRecent),
+// or every account on this computer when that file lists none of them. Steam
+// no longer writes MostRecent, so one left over from an old account would
+// otherwise win over the account signed in now.
 function steamAccounts(root, files = fs) {
   let ids = [];
   try { ids = files.readdirSync(path.join(root, 'userdata')).filter(name => /^\d+$/.test(name) && name !== '0'); } catch { return []; }
@@ -208,7 +209,7 @@ function steamAccounts(root, files = fs) {
     if (ids.includes(account))
       listed.push({ account, recent: /"MostRecent"\s*"1"/i.test(body), time: Number(/"Timestamp"\s*"(\d+)"/i.exec(body)?.[1] || 0) });
   }
-  const latest = listed.find(item => item.recent) || listed.sort((a, b) => b.time - a.time)[0];
+  const latest = listed.sort((a, b) => b.time - a.time || b.recent - a.recent)[0];
   return latest ? [latest.account] : ids;
 }
 
@@ -279,23 +280,79 @@ function checkedVdf(parsed, others, count) {
 // The copy of shortcuts.vdf made before a change. The first is
 // shortcuts.vdf.sms-launcher-backup and is never replaced; later ones are named
 // after the time, so choosing Add to Steam again keeps the copy from before.
+// A list that already has a copy isn't saved again.
 function backUp(vdf, data, files, now = new Date()) {
   const first = `${vdf}.sms-launcher-backup`;
   try { files.writeFileSync(first, data, { flag: 'wx' }); return first; } catch (error) { if (error.code !== 'EEXIST') throw error; }
-  const dated = `${first}-${now.toISOString().replace(/[:.]/g, '-')}`;
-  files.writeFileSync(dated, data);
-  return dated;
+  let dated = [];
+  try { dated = files.readdirSync(path.dirname(vdf)).filter(name => name.startsWith(`${path.basename(first)}-`)).sort(); } catch { /* none yet */ }
+  for (const copy of [first, ...dated.map(name => path.join(path.dirname(vdf), name))]) {
+    try { if (files.readFileSync(copy).equals(data)) return copy; } catch { /* compared with the next */ }
+  }
+  const file = `${first}-${now.toISOString().replace(/[:.]/g, '-')}`;
+  files.writeFileSync(file, data);
+  return file;
+}
+
+// How many non-Steam games a shortcuts.vdf lists, or null when it can't be read.
+function shortcutCount(data) {
+  try { return (field(parseVdf(data), 'shortcuts')?.[2] || []).length; } catch { return null; }
+}
+
+// Every Steam folder's shortcuts.vdf as it is now, taken before Steam closes:
+// Steam writes its own list over the file as it exits, and has been seen to
+// write it short (on the Steam Deck it can load an empty or another folder's
+// list, such as userdata/0's). Each is backed up, so the list from before Steam
+// closed is kept whatever Steam writes, and addShortcut compares against it.
+// `backUp: false` only reads them, for the log.
+function snapshotShortcuts({ root, backUp: save = true, files = fs }) {
+  let folders = [];
+  try { folders = files.readdirSync(path.join(root, 'userdata')).filter(name => /^\d+$/.test(name)).sort(); } catch { return []; }
+  return folders.flatMap(account => {
+    const vdf = path.join(root, 'userdata', account, 'config', 'shortcuts.vdf');
+    let data;
+    try { data = files.readFileSync(vdf); } catch { return []; }
+    let backup = null;
+    try { if (save) backup = backUp(vdf, data, files); } catch { /* the snapshot in memory still guards the write */ }
+    return [{ account, data, count: shortcutCount(data), backup }];
+  });
+}
+
+// The snapshot for the log: each folder with how many non-Steam games it lists.
+const describeShortcuts = snapshot => snapshot.length
+  ? snapshot.map(({ account, count }) => `${account === '0' ? 'folder 0' : `account ${account}`}: ${count === null ? "couldn't be read" : `${count} non-Steam game${count === 1 ? '' : 's'}`}`).join('; ')
+  : 'no shortcuts.vdf in any Steam folder';
+
+// Steam wrote fewer non-Steam games as it closed than an account had before
+// (in `snapshot`, from snapshotShortcuts). Steam's short list is kept as a
+// backup, the list from before Steam closed goes back, and nothing is added.
+function stopIfSteamLostGames({ snapshot, account, vdf, data, files }) {
+  const earlier = snapshot?.find(item => item.account === account);
+  if (!earlier?.count) return;
+  const now = data ? shortcutCount(data) : 0;
+  if (now !== null && now >= earlier.count) return;
+  if (data) backUp(vdf, data, files);
+  writeAtomically(vdf, earlier.data, files);
+  const error = new Error(`Steam lost ${now === null ? 'its list of' : `${earlier.count - now} of the ${earlier.count}`} non-Steam games as it closed, so Add to Steam stopped and put back the list from before Steam closed. Open Steam and check your non-Steam games are there, then choose Add to Steam again.`);
+  error.restored = { account, before: earlier.count, after: now };
+  throw error;
 }
 
 // Adds the launcher to each account's shortcuts.vdf (backing up the old file
-// first) and saves its artwork. Steam must be closed.
-function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launchOptions = '', play, artwork = [], platform = process.platform, files = fs }) {
-  return accounts.map(account => {
+// first) and saves its artwork. Steam must be closed. `snapshot` is each
+// folder's list from before Steam closed: when Steam wrote an account's list
+// short, it is put back as it was and nothing is added to any account.
+function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launchOptions = '', play, artwork = [], snapshot, platform = process.platform, files = fs }) {
+  const lists = accounts.map(account => {
     const config = path.join(root, 'userdata', account, 'config');
     const vdf = path.join(config, 'shortcuts.vdf');
-    files.mkdirSync(path.join(config, 'grid'), { recursive: true });
     let data = null;
     try { data = files.readFileSync(vdf); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+    return { account, config, vdf, data };
+  });
+  for (const list of lists) stopIfSteamLostGames({ snapshot, ...list, files });
+  return lists.map(({ account, config, vdf, data }) => {
+    files.mkdirSync(path.join(config, 'grid'), { recursive: true });
     const parsed = data ? parseVdf(data) : [[MAP, 'shortcuts', []]];
     const before = field(parsed, 'shortcuts')?.[2] || [];
     const count = before.length, bytes = shortcutBytes(before);
@@ -316,5 +373,5 @@ function addShortcut({ root, accounts, exe, startDir, appName = APP_NAME, launch
 module.exports = {
   APP_NAME, ARTWORK, MAP, STRING, INT32, parseVdf, serializeVdf, shortcutAppId, upsertShortcut,
   steamRoots, registrySteamPath, findSteam, steamAccounts, downloadArtwork, hasShortcut, shortcutLaunchOptions, skipsLauncher, missingOptions,
-  isSteamOS, checkedVdf, addShortcut
+  isSteamOS, checkedVdf, snapshotShortcuts, describeShortcuts, addShortcut
 };

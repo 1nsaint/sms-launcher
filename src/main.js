@@ -408,11 +408,18 @@ async function addToSteam({ play = false } = {}) {
       detail: `Steam picks up new non-Steam games only when it starts, so it closes for a moment${reopen ? ' and opens again afterwards' : '. Open it again once the launcher says it was added'}.`
     });
     if (answer.response !== 1) return { cancelled: true };
+  }
+  // Each folder's list is backed up before Steam closes, since Steam writes its
+  // own over it as it exits (see steam.snapshotShortcuts).
+  const snapshot = steam.snapshotShortcuts({ root });
+  log(`Steam's non-Steam games before ${wasRunning ? 'closing Steam' : 'adding'} (${root}): ${steam.describeShortcuts(snapshot)}. Adding to account ${accounts.join(', ')}.`);
+  if (wasRunning) {
     log('Closing Steam…');
     await shell.openExternal('steam://exit');
     await waitForSteamToClose();
+    log(`Steam's non-Steam games after Steam closed: ${steam.describeShortcuts(steam.snapshotShortcuts({ root, backUp: false }))}.`);
   }
-  const results = steam.addShortcut({ root, accounts, exe, startDir: path.dirname(exe), artwork,
+  const results = steam.addShortcut({ root, accounts, exe, startDir: path.dirname(exe), artwork, snapshot,
     launchOptions: STEAM_LAUNCH_OPTIONS, play: Boolean(play) });
   const added = results.some(result => result.added);
   const images = Math.min(...results.map(result => result.artwork));
