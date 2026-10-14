@@ -12,6 +12,7 @@ const buildTools = require('./build-tools');
 const game = require('./game-version');
 const updateChannel = require('./update-channel');
 const steam = require('./steam');
+const gcAdapter = require('./gc-adapter');
 const appImageUpdate = require('./appimage-update');
 const bindings = require('./bindings');
 const savestates = require('./savestates');
@@ -335,6 +336,49 @@ async function steamStatus() {
   if (status.reason && status.reason !== steamReasonLogged) log(status.reason);
   steamReasonLogged = status.reason;
   return status;
+}
+
+// GameCube adapter in Wii U mode (gc-adapter.js): Settings → Controls shows
+// whether one is plugged in and the game can open it, and on Linux installs the
+// udev rule that lets it. What it found goes in the log whenever that changes.
+function commandOutput(command, args) {
+  return new Promise(resolve => execFile(command, args, { windowsHide: true, timeout: 15000 }, (_error, stdout) => resolve(stdout || '')));
+}
+
+let gcAdapterLogged = null;
+async function gcAdapterStatus() {
+  let status = { present: false };
+  if (process.platform === 'linux') status = gcAdapter.linuxStatus();
+  else if (process.platform === 'win32') {
+    status = gcAdapter.windowsStatus(await commandOutput('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', gcAdapter.WINDOWS_QUERY]));
+  } else if (process.platform === 'darwin') status = gcAdapter.macStatus(await commandOutput('ioreg', ['-p', 'IOUSB', '-l', '-w0']));
+  const line = !status.present ? 'GameCube adapter: none plugged in (Wii U mode).'
+    : status.readable ? `GameCube adapter: plugged in, the game can read it${status.via ? ` (${status.via})` : status.driver ? ` (${status.driver} driver)` : ''}.`
+    : status.fix === 'udev' ? `GameCube adapter: plugged in, but this user can't open it (${[status.hidraw?.file, status.usb?.file].filter(Boolean).join(', ')}); it needs a udev rule.`
+    : status.fix === 'driver' ? `GameCube adapter: plugged in, but Windows has no working driver for it (${status.status || 'no status'}).`
+    : 'GameCube adapter: plugged in, but libusb is not installed (brew install libusb).';
+  if (line !== gcAdapterLogged && (status.present || gcAdapterLogged)) log(line);
+  gcAdapterLogged = line;
+  return status;
+}
+
+// pkexec asks for the password, then installs the rule and applies it to the
+// adapter already plugged in. Without pkexec, or with no password to give (a
+// Steam Deck's user has none until one is set with passwd), the player copies
+// the terminal command instead.
+async function allowGcAdapter() {
+  if (process.platform !== 'linux') return { ok: false, status: await gcAdapterStatus() };
+  const { command, args } = gcAdapter.allowCommand();
+  const error = await new Promise(resolve => execFile(command, args, { timeout: 120000 }, resolve));
+  if (error) {
+    const reason = error.code === 'ENOENT' ? 'pkexec is not installed'
+      : error.code === 126 ? 'the password prompt was closed' : error.code === 127 ? 'the password was not accepted' : error.message.split('\n')[0];
+    log(`GameCube adapter: the udev rule was not installed (${reason}).`);
+    return { ok: false, reason, status: await gcAdapterStatus() };
+  }
+  log(`GameCube adapter: installed ${gcAdapter.RULES_FILE}.`);
+  await new Promise(resolve => setTimeout(resolve, 1500)); // for udev to apply it
+  return { ok: true, status: await gcAdapterStatus() };
 }
 
 // Play offers Add to Steam on SteamOS only once, and opening the launcher
@@ -1136,6 +1180,9 @@ function registerHandlers() {
   ipcMain.handle('clean-preview', () => exclusive('Preview cleanup', () => clean(true)));
   ipcMain.handle('backup-saves', () => exclusive('Back up saves', () => makeSaveBackup('manual')));
   ipcMain.handle('steam-status', () => steamStatus());
+  ipcMain.handle('gc-adapter-status', () => gcAdapterStatus());
+  ipcMain.handle('gc-adapter-allow', () => allowGcAdapter());
+  ipcMain.handle('gc-adapter-copy-command', () => clipboard.writeText(gcAdapter.terminalCommand()));
   ipcMain.handle('steam-offered', (_event, prompt) => markSteamOffered(prompt));
   ipcMain.handle('add-to-steam', (_event, options) => exclusive('Add to Steam', () => addToSteam(options)));
   ipcMain.handle('import-dolphin-save', (_event, file) => exclusive('Import Dolphin save', async () => {
