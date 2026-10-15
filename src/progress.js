@@ -107,10 +107,36 @@ function activityFromLine(line) {
 const ECLIPSE_SOURCES = [['eclipse', 'Super Mario Eclipse'], ['bse', 'Better Sunshine Engine'],
   ['moveset', 'Better Sunshine Moveset'], ['shi', 'Sunshine Header Interface']];
 
+// The Eclipse installer (tools/mods/get.py eclipse) reports its download as
+// the texture installer does, then unpacks and patches for minutes at a time.
+function eclipseInstallActivity(value) {
+  const download = value.match(/^Texture download: (\d+)\/(\d+) bytes$/);
+  if (download) {
+    const received = Number(download[1]), total = Number(download[2]);
+    if (!Number.isSafeInteger(received) || !Number.isSafeInteger(total) || (total && received > total)) return null;
+    const mb = bytes => `${(bytes / 1e6).toLocaleString('en-US', { maximumFractionDigits: 1 })} MB`;
+    return { detail: `Downloading Super Mario Eclipse · ${mb(received)}${total ? ` of ${mb(total)}` : ' downloaded'}`,
+      percent: total ? Math.floor(received / total * 100) : null };
+  }
+  if (value === 'Checking HD texture download') return { detail: 'Checking the Eclipse download', percent: null };
+  if (/^Unpacking /.test(value)) return { detail: 'Unpacking Super Mario Eclipse (a few minutes)', percent: null };
+  const patching = value.match(/^Patching your image(?:: (\d{1,3})%)?/);
+  if (patching) return { detail: 'Making Super Mario Eclipse from your disc (a few minutes)',
+    percent: patching[1] ? Math.min(100, Number(patching[1])) : null };
+  return null;
+}
+
 function createActivityReader() {
-  let source = null;
+  let source = null, eclipseInstall = false;
   return function read(line) {
     const value = cleanOutputLine(line).trim();
+    if (/^== Eclipse: /.test(value)) eclipseInstall = true;
+    if (eclipseInstall) {
+      const activity = eclipseInstallActivity(value);
+      if (activity) return activity;
+      if (/^Downloading Super Mario Eclipse/.test(value))
+        return { detail: 'Downloading Super Mario Eclipse (about 900 MB)', percent: null };
+    }
     const fetch = value.match(/^-- SMS_ECLIPSE: fetching (\w+) [a-f0-9]{40}$/);
     if (fetch) {
       const index = ECLIPSE_SOURCES.findIndex(([name]) => name === fetch[1]);

@@ -341,6 +341,9 @@ test('a language pack is downloaded when that language is chosen and its pinned 
   for (const platform of ['linux', 'darwin'])
     assert.deepEqual(port.commandFor(root, 'language', ['fr'], platform).args,
       [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'language', 'fr', '--if-outdated']);
+  for (const platform of ['linux', 'darwin'])
+    assert.deepEqual(port.commandFor(root, 'python', ['/games/sms.iso'], platform).args,
+      [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'eclipse', '--iso', '/games/sms.iso']);
 });
 
 test('Eclipse builder uses its own CMake tree without bundling the patched disc', () => {
@@ -409,6 +412,10 @@ test('Windows command passes an image path as data to MSYS2 Bash', () => {
     const language = port.commandFor('C:\\port', 'language', ['es'], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
     assert.match(language.args[1], /tools\/mods\/get\.py language "\$3" --if-outdated$/);
     assert.deepEqual(language.args.slice(3), ['C:\\port', path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'), 'es']);
+    // The Eclipse install reports its 900 MB download through the same wrapper.
+    const eclipse = port.commandFor('C:\\port', 'python', ['C:\\Games\\Sunshine.iso'], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
+    assert.match(eclipse.args[1], /python "\$\(cygpath -u "\$2"\)" tools\/mods\/get\.py eclipse --iso "\$\(cygpath -u "\$3"\)"$/);
+    assert.deepEqual(eclipse.args.slice(3), ['C:\\port', path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'), 'C:\\Games\\Sunshine.iso']);
   } finally {
     if (old === undefined) delete process.env.MSYS2_ROOT;
     else process.env.MSYS2_ROOT = old;

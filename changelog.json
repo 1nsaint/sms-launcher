@@ -8,11 +8,15 @@
       "Fixed Super Mario Eclipse with a language other than English chosen: Eclipse now always plays in English, and Settings greys out Language while Eclipse is on. Your language comes back when you turn Eclipse off.",
       "Import a Dolphin save now takes Super Mario Eclipse saves (04-GMSE-super_mario_sunshine.gci) and puts them in Eclipse's save. You can drop several saves, or the whole Dolphin memory card folder, at once: Eclipse's settings files and saves with no progress are skipped instead of replacing yours, and after importing, Settings → Saves shows which game each save is for and the Shines in each file.",
       "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before.",
-      "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for."
+      "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for.",
+      "Setting up Super Mario Eclipse now shows its 900 MB download as it goes, then its unpacking and patching, instead of sitting on one line for minutes and looking stuck.",
+      "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\"."
     ],
     "game": [
       "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",
-      "Nintendo's GameCube controller adapter, and copies of it in Wii U mode, now work on Windows without Zadig and on Linux, and play as on a GameCube: B and X are no longer swapped, FLUDD aims only once R clicks, and controllers rumble when the adapter's second plug is connected."
+      "Nintendo's GameCube controller adapter, and copies of it in Wii U mode, now work on Windows without Zadig and on Linux, and play as on a GameCube: B and X are no longer swapped, FLUDD aims only once R clicks, and controllers rumble when the adapter's second plug is connected.",
+      "Fixed Super Mario Eclipse setup failing with \"could not check out eclipse\" on computers with their own git hooks set up, and the patching step now reports its progress.",
+      "A download of HD textures, a language pack or Super Mario Eclipse that stops partway is now deleted and started over once before trying the other download site, and an unfinished one left by an earlier try no longer counts against the free space setup needs."
     ]
   },
   "releases": [
