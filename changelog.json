@@ -12,14 +12,18 @@
       "Setting up Super Mario Eclipse now shows its 900 MB download as it goes, then its unpacking and patching, instead of sitting on one line for minutes and looking stuck.",
       "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\".",
       "When a program in the build tools goes missing on Windows, the launcher now names it and asks you to restore it from your antivirus's quarantine or exclude the build tools folder from scanning, both while downloading the tools again and when a game build fails because of it. If files are missing right after the download, an alert asks you to check your antivirus and try again.",
-      "Play in Polish: choose Polski under Settings → Gameplay → Language. It's a community translation of the game's text; menus and pictures stay in English. New languages can now come with a launcher update alone."
+      "Play in Polish: choose Polski under Settings → Gameplay → Language. It's a community translation of the game's text; menus and pictures stay in English. New languages can now come with a launcher update alone.",
+      "Game updates now go in shorter folders, so on Windows a launcher kept in a deep folder no longer fails to build with \"No such file or directory\"; if the folder is still too deep, the launcher says so before building and suggests a shorter one such as C:\\Games."
     ],
     "game": [
       "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",
       "Nintendo's GameCube controller adapter, and copies of it in Wii U mode, now work on Windows without Zadig and on Linux, and play as on a GameCube: B and X are no longer swapped, FLUDD aims only once R clicks, and controllers rumble when the adapter's second plug is connected.",
       "Fixed Super Mario Eclipse setup failing with \"could not check out eclipse\" on computers with their own git hooks set up, and the patching step now reports its progress.",
       "A download of HD textures, a language pack or Super Mario Eclipse that stops partway is now deleted and started over once before trying the other download site, and an unfinished one left by an earlier try no longer counts against the free space setup needs.",
-      "The game plays any installed language pack, so new languages no longer need a game update."
+      "The game plays any installed language pack, so new languages no longer need a game update.",
+      "Fixed Super Mario Eclipse failing to build when the launcher's folder has a comma in its path, such as \"Recomps, Decomp and other ports\".",
+      "With widescreen on, the map screen now fills the whole width, like the 16:9 map of later releases, instead of a 4:3 sheet with the level showing at both sides.",
+      "Fixed Pinna Park's climbing-cage mesh, and other HD fences and meshes, thinning out and vanishing a few metres from the camera with HD textures on."
     ]
   },
   "releases": [

@@ -75,10 +75,14 @@ function isCurrent(root, settings, source = release) {
     (!record.toolRoot || fs.existsSync(record.toolRoot)) && matchesSource(root, source));
 }
 
+// Short, since Windows builds can't use paths of 260 characters or more
+// (port.windowsPathLimit): the game's commit, then a hash of what else
+// tells versions apart (a custom decomp, the computer's system, the tools).
 function snapshotPath(base, settings, source = release) {
   const expected = identity(settings, undefined, undefined, source);
-  const decomp = source.custom ? `-${source.decomp.slice(0, 12)}` : '';
-  return path.join(`${base}.releases`, `${source.commit.slice(0, 12)}${decomp}-${tools.platformId()}-${expected.toolSha256.slice(0, 12)}`);
+  const variant = [source.custom ? source.decomp : '', tools.platformId(), expected.toolSha256].join('|');
+  const hash = crypto.createHash('sha256').update(variant).digest('hex').slice(0, 4);
+  return path.join(`${base}.releases`, `${source.commit.slice(0, 7)}-${hash}`);
 }
 
 async function checkout(root, { git = 'git', run, capture, env, source = release, reference } = {}) {

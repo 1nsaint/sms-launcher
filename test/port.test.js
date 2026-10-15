@@ -564,3 +564,21 @@ test('settings keep only changed, known controller buttons', () => {
   assert.deepEqual(port.normalizeSettings({ padBindings: { A: ['PAD_Y'], B: ['PAD_B'], JUMP: ['PAD_A'], X: ['NOPE'] } }).padBindings,
     { A: ['PAD_Y'] });
 });
+
+test('a Windows game folder too deep for the compiler is explained, with what to do', () => {
+  // A player's portable launcher: the old folder name made the Eclipse build's deepest path 261 characters.
+  const base = 'E:\\Spel\\Emulation\\Recomps, Decomp and other ports\\Super Mario Sunshine\\SMS-Launcher-Portable\\sms-pc-port.releases\\';
+  const before = `${base}c1da79da5dc5-windows-x64-9d02b4b55bfc`, now = `${base}c1da79d-3f2a`;
+  assert.equal(before.length, 151);
+  const eclipse = { eclipse: true }, sunshine = { eclipse: false };
+  const message = port.longPathProblem(before, eclipse, { platform: 'win32', portable: true });
+  assert.match(message, /^The game folder's path is 151 characters long, more than the 130 a Windows build of Super Mario Eclipse can use/);
+  assert.match(message, /Move the launcher and its SMS-Launcher-Portable folder together/);
+  assert.match(port.longPathProblem(before, eclipse, { platform: 'win32' }), /Choose a shorter folder for Setup files in Settings/);
+  // Sunshine's shallower build was one character over too; the shorter folder names fit both.
+  assert.match(port.longPathProblem(before, sunshine, { platform: 'win32' }), /151 characters long, more than the 150 a Windows build of the game/);
+  assert.equal(port.longPathProblem(now, eclipse, { platform: 'win32', portable: true }), null);
+  assert.equal(port.longPathProblem(now, sunshine, { platform: 'win32', portable: true }), null);
+  // The 260-character limit is Windows'.
+  assert.equal(port.longPathProblem(before, eclipse, { platform: 'linux' }), null);
+});

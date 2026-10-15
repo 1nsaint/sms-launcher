@@ -385,6 +385,25 @@ function binaryPath(root, settings, platform = process.platform) {
   return path.join(root, 'build', `${info.id}-${settings.arch}${suffix}`, platform === 'win32' ? 'sms.exe' : 'sms');
 }
 
+// MinGW's compiler can't open a path of 260 characters or more. The deepest
+// file a Windows build writes is an object's dependency file, in a folder
+// CMake shortens to a 32-character hash: 109 characters below the game
+// folder for Sunshine (build/windows-64/CMakeFiles/sms_game.dir/<hash>/
+// MarDirectorCreateObjects.cpp.obj.d), 129 for Eclipse's mods
+// (…-eclipse/eclipse-build/CMakeFiles/eclipse_objs.dir/./<hash>/character_select.cpp.obj.d).
+function windowsPathLimit(settings) { return settings.eclipse ? 130 : 150; }
+
+// Why a Windows build of this game folder will likely fail, or null.
+function longPathProblem(root, settings, { platform = process.platform, portable = false } = {}) {
+  const limit = windowsPathLimit(settings);
+  if (platform !== 'win32' || root.length <= limit) return null;
+  return `The game folder's path is ${root.length} characters long, more than the ${limit} a Windows build of ` +
+    `${settings.eclipse ? 'Super Mario Eclipse' : 'the game'} can use, so the build will likely fail: Windows' compiler can't open ` +
+    `paths of 260 characters or more. ${portable
+      ? 'Move the launcher and its SMS-Launcher-Portable folder together to a short folder such as C:\\Games, and open it from there.'
+      : 'Choose a shorter folder for Setup files in Settings, such as C:\\Games.'}`;
+}
+
 function playableInstall(saved, platform = process.platform) {
   if (!saved.repo || !saved.settings) return null;
   const settings = normalizeSettings(saved.settings, platform);
@@ -488,4 +507,4 @@ module.exports = { PORT_URL, ECLIPSE_ISO, platformInfo, isPort, validateRom, nor
   LANGUAGES, LANGUAGE_PACKS, gameLanguage, languagePackDirectory, languagePacksSupported, languageAvailable, languageChoices,
   languagePackInstalled, languagePackWanted,
   cutscenePackDirectory, cutscenePackInstalled, cutscenePackSupported, cutscenePackRequirements, wantsCutscenes, hdVisualsInstalled, buildEnvironment, gameDisc, binaryPath,
-  commandFor, eclipseBuildCommand, eclipseRunCommand, playableInstall };
+  commandFor, eclipseBuildCommand, eclipseRunCommand, playableInstall, windowsPathLimit, longPathProblem };
