@@ -31,7 +31,8 @@
         "to": "scripts",
         "filter": [
           "build-eclipse.sh",
-          "texture-progress.py"
+          "texture-progress.py",
+          "install-language.py"
         ]
       }
     ],

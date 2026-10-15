@@ -146,6 +146,19 @@ function startCapture(id, add) {
 
 // --- Button prompts (src/prompts.js): the icons the game shows for the GameCube buttons in its text, drawn from
 // the bindings above. The strips go to the launcher's prompts folder whenever what they show changes.
+// The Language list, from the launcher's catalog (main.js state): each
+// language in its own name, English first.
+function renderLanguages(languages) {
+  if (!languages?.length) return;
+  $('language').replaceChildren(...languages.map(item => {
+    const option = document.createElement('option');
+    option.value = item.code;
+    option.textContent = item.name;
+    if (item.code !== 'en') option.lang = item.code;
+    return option;
+  }));
+}
+
 function promptOptions(styles) {
   return styles.map(({ id, label }) => {
     const option = document.createElement('option'); option.value = id; option.textContent = label; return option;
@@ -601,6 +614,7 @@ function refresh(data) {
     return option;
   }));
   renderExclusiveResolutions(config.settings.exclusiveResolution);
+  renderLanguages(data.languages);
   for (const key of ['arch', 'widescreen', 'resolution', 'volume', 'frameRate', 'language', 'vsync', 'fullscreenMode', 'exclusiveResolution',
     'display', 'cameraSpeed', 'mouseSensitivity', 'msaa', 'anisotropic', 'sharpen', 'brightness', 'aspect', 'presentFilter', 'fsrMode',
     'textureLoading'])
@@ -639,9 +653,12 @@ function refresh(data) {
   // Languages need a game version with language packs. Eclipse has none and plays in English;
   // the chosen language stays for Super Mario Sunshine.
   $('language').disabled = Boolean(data.active) || config.settings.eclipse;
+  const chosen = (data.languages || []).find(item => item.code === config.settings.language);
   $('language-note').textContent = config.settings.eclipse ? 'Super Mario Eclipse plays in English. Your language applies when Eclipse is off.'
     : data.repoReady && !data.languagesSupported ? 'Update the game to add languages.'
-      : config.settings.language !== 'en' && !data.languageInstalled ? 'The language pack downloads before the game starts.' : '';
+      : chosen && !chosen.available ? `Update the game to play in ${chosen.name}. It plays in English until then.`
+        : config.settings.language !== 'en' && !data.languageInstalled ? 'The language pack downloads before the game starts.'
+          : chosen?.community ? `${chosen.name} is a community translation; some menus and pictures stay in English.` : '';
   $('language-note').hidden = !$('language-note').textContent;
   renderDependents(Boolean(data.active));
   renderHdr(Boolean(data.active));

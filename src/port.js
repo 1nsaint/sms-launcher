@@ -213,23 +213,47 @@ function textureExtrasWanted(root, settings) {
   return Boolean(settings.textures) && textureExtrasSupported(root) && !textureExtrasInstalled(root);
 }
 
-// Languages other than the disc's English come from the port's language
-// packs (the European release's text and menus, published with the texture
-// extras). The port pins them in tools/mods/language-packs.json and records
-// the release it installed in mods/languages/<code>/.release.
-const LANGUAGES = ['en', 'fr', 'de', 'es', 'it'];
+// Languages other than the disc's English come from language packs (the
+// European release's four and community translations, published with the
+// texture extras). The launcher's own catalog, language-packs.json, says
+// which packs exist and which release of each to install, so a new language
+// needs a new release and a launcher update, not a game update. Installed
+// packs record their release in mods/languages/<code>/.release.
+const LANGUAGE_PACKS = require('./language-packs.json').languages;
+const LANGUAGES = ['en', ...Object.keys(LANGUAGE_PACKS)];
 function languagePackDirectory(root, code) { return path.join(root, 'mods', 'languages', code); }
 
-function languagePacksSupported(root) {
-  return fs.existsSync(path.join(root, 'tools', 'mods', 'language-packs.json'));
+// The game's own list (tools/mods/language-packs.json): present when it plays
+// language packs at all; "any_language" when it plays any installed pack,
+// not only the ones it lists.
+function gameLanguagePacks(root) {
+  try { return JSON.parse(fs.readFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'), 'utf8')); }
+  catch (_) { return null; }
+}
+
+function languagePacksSupported(root) { return Boolean(gameLanguagePacks(root)); }
+
+// Whether the game in `root` can play `code`'s pack.
+function languageAvailable(root, code) {
+  if (code === 'en') return true;
+  const game = gameLanguagePacks(root);
+  return Boolean(LANGUAGE_PACKS[code] && game && (game.any_language || game.languages?.[code]));
 }
 
 function languagePackInstalled(root, code) {
   try {
-    const pinned = JSON.parse(fs.readFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'), 'utf8')).languages[code];
+    const pinned = LANGUAGE_PACKS[code];
     const installed = JSON.parse(fs.readFileSync(path.join(languagePackDirectory(root, code), '.release'), 'utf8'));
     return typeof pinned.md5 === 'string' && /^[0-9a-f]{32}$/.test(pinned.md5) && installed.md5 === pinned.md5;
   } catch (_) { return false; }
+}
+
+// The languages for the Settings list: code, name in its own language, and
+// whether the game set up in `root` plays it.
+function languageChoices(root) {
+  return LANGUAGES.map(code => code === 'en' ? { code, name: 'English', available: true }
+    : { code, name: LANGUAGE_PACKS[code].name, english: LANGUAGE_PACKS[code].english,
+      community: Boolean(LANGUAGE_PACKS[code].community), available: !root || languageAvailable(root, code) });
 }
 
 // The language the game plays in. Eclipse has no language packs and its own
@@ -239,11 +263,11 @@ function gameLanguage(settings) {
   return !settings.eclipse && LANGUAGES.includes(settings.language) ? settings.language : 'en';
 }
 
-// The pack to download for these settings: a language other than English, a
-// port that has packs, and not the pinned release installed.
+// The pack to download for these settings: a language other than English
+// that the game plays, and not the catalog's release installed.
 function languagePackWanted(root, settings) {
   const code = gameLanguage(settings);
-  return LANGUAGES.includes(code) && code !== 'en' && languagePacksSupported(root) && !languagePackInstalled(root, code);
+  return code !== 'en' && languageAvailable(root, code) && !languagePackInstalled(root, code);
 }
 
 function cutscenePackSupported(root) {
@@ -303,7 +327,7 @@ function buildEnvironment(settings, disc, root) {
     SMS_FULLSCREEN: settings.fullscreen ? (settings.fullscreenMode === 'exclusive' ? 'exclusive' : '1') : '0',
     SMS_VSYNC: settings.vsync === 'adaptive' ? 'adaptive' : settings.vsync === 'on' ? '1' : '0',
     SMS_SKIP_MOVIES: settings.skipMovies ? '1' : '0',
-    SMS_LANGUAGE: gameLanguage(settings),
+    SMS_LANGUAGE: root && !languageAvailable(root, gameLanguage(settings)) ? 'en' : gameLanguage(settings),
     SMS_SOFT_TRIGGER: String(settings.softTrigger ?? 40),
     SMS_RUMBLE: settings.rumbleStrength === 0 ? '0' : '1',
     SMS_RUMBLE_STRENGTH: String(rumbleGameStrength(settings.rumbleStrength)),
@@ -382,12 +406,17 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
   const textureProgress = __dirname.includes('app.asar')
     ? path.join(process.resourcesPath, 'scripts', 'texture-progress.py')
     : path.resolve(__dirname, '..', 'scripts', 'texture-progress.py');
+  const installLanguage = path.join(path.dirname(textureProgress), 'install-language.py');
+  // a language pack: [code, name, url, md5, size] from the catalog
+  const pack = action === 'language' ? LANGUAGE_PACKS[args[0]] : null;
+  if (action === 'language' && !pack) throw new Error(`There is no language pack "${args[0]}".`);
+  const packArgs = pack ? [args[0], pack.name, pack.url, pack.md5, String(pack.size)] : [];
   if (platform !== 'win32') {
     const file = ['python', 'textures', 'texture-extras', 'language', 'cutscenes'].includes(action) ? 'python3' : path.join(root, `${action}.sh`);
     const commandArgs = action === 'python' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'eclipse', '--iso', ...args]
       : action === 'textures' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py')]
         : action === 'texture-extras' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'extras', '--if-outdated']
-        : action === 'language' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'language', args[0], '--if-outdated']
+        : action === 'language' ? [textureProgress, installLanguage, ...packArgs]
         : action === 'cutscenes' ? ['tools/media/install_cutscenes.py', '--iso', ...args] : args;
     return { command: file, args: commandArgs, cwd: root, env: environment };
   }
@@ -403,14 +432,15 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
     : action === 'texture-extras'
       ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py extras --if-outdated'
     : action === 'language'
-      ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py language "$3" --if-outdated'
+      ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" "$(cygpath -u "$3")" "${@:4}"'
     : action === 'clean'
       ? 'cd "$(cygpath -u "$1")" && ./clean.sh "${@:2}"'
       : `cd "$(cygpath -u "$1")" && ./${action}.sh "$(cygpath -u "$2")"`;
   return {
     command: bash,
     args: ['-c', script, 'sms-launcher', root, ...(action === 'textures' || action === 'texture-extras' ? [textureProgress]
-      : action === 'language' || action === 'python' ? [textureProgress, args[0]] : args)], cwd: root,
+      : action === 'language' ? [textureProgress, installLanguage, ...packArgs]
+      : action === 'python' ? [textureProgress, args[0]] : args)], cwd: root,
     env: msysEnvironment(msys, environment)
   };
 }
@@ -455,6 +485,7 @@ function eclipseRunCommand(...args) { return gameRunCommand(...args); }
 
 module.exports = { PORT_URL, ECLIPSE_ISO, platformInfo, isPort, validateRom, normalizeSettings, savedSettings,
   texturePackDirectory, texturePackInstalled, textureExtrasDirectory, textureExtrasSupported, textureExtrasInstalled, textureExtrasWanted,
-  LANGUAGES, gameLanguage, languagePackDirectory, languagePacksSupported, languagePackInstalled, languagePackWanted,
+  LANGUAGES, LANGUAGE_PACKS, gameLanguage, languagePackDirectory, languagePacksSupported, languageAvailable, languageChoices,
+  languagePackInstalled, languagePackWanted,
   cutscenePackDirectory, cutscenePackInstalled, cutscenePackSupported, cutscenePackRequirements, wantsCutscenes, hdVisualsInstalled, buildEnvironment, gameDisc, binaryPath,
   commandFor, eclipseBuildCommand, eclipseRunCommand, playableInstall };
