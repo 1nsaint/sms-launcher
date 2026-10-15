@@ -137,9 +137,11 @@ async function checkout(root, { git = 'git', run, capture, env, source = release
       throw new Error('The downloaded game files did not match this release. Please retry.');
     fs.writeFileSync(path.join(root, 'launcher-source.json'), JSON.stringify(source, null, 2));
   } catch (error) {
-    if (promoted) fs.rmSync(root, { recursive: true, force: true });
+    // Not rmSync, which cannot remove Git's read-only object files on Windows,
+    // and never in place of the error that brought us here.
+    if (promoted) await fs.promises.rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
     throw error;
-  } finally { fs.rmSync(temporary, { recursive: true, force: true }); }
+  } finally { await fs.promises.rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {}); }
 }
 
 const USER_FOLDERS = ['textures', 'hd-cutscenes', 'eclipse'];

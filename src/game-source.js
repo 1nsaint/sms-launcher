@@ -63,7 +63,11 @@ async function pinnedDecomp(repository, commit, { git, capture, env }) {
     const sha = entry.match(/^160000 commit ([a-f0-9]{40})\t/)?.[1];
     if (!sha) throw new Error('That game commit has no decomp submodule.');
     return sha;
-  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+  } finally {
+    // Best effort, and not rmSync: on Windows it cannot remove the read-only
+    // object files Git writes, and a leftover temporary folder is harmless.
+    await fs.promises.rm(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }).catch(() => {});
+  }
 }
 
 // An override -> a source with this release's fields (see game-version.js).
