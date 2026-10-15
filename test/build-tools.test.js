@@ -81,6 +81,67 @@ test('failed archive relocation restores the previous tools', x64Tools, async ()
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
+// A matching tools installation with every required file, at rootFor's location.
+function installedTools(dir, platform) {
+  const root = tools.rootFor(dir, platform);
+  fs.mkdirSync(root, { recursive: true });
+  fs.writeFileSync(path.join(root, 'ready.json'), JSON.stringify({ toolset: tools.toolsetFor(platform), archiveSha256: tools.assetFor(platform).sha256 }));
+  for (const file of tools.missingTools(dir, platform)) {
+    fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+    fs.writeFileSync(path.join(root, file), 'fixture');
+  }
+  return root;
+}
+
+test('Windows tools that lose an executable after setup are no longer ready, and a failed build names it', t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-deleted-tools-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.equal(tools.missingTools(dir, 'win32'), null);
+  assert.equal(tools.deletedToolsError(dir, 'win32'), null);
+  const root = installedTools(dir, 'win32');
+  assert.ok(['ninja.exe', 'cmake.exe', 'clang++.exe', 'python.exe', 'g++.exe']
+    .every(name => fs.existsSync(path.join(root, 'msys64', 'mingw64', 'bin', name))));
+  assert.equal(tools.privateReady(dir, 'win32'), true);
+  assert.equal(tools.deletedToolsError(dir, 'win32'), null);
+  fs.rmSync(path.join(root, 'msys64', 'mingw64', 'bin', 'ninja.exe'));
+  assert.equal(tools.privateReady(dir, 'win32'), false);
+  assert.deepEqual(tools.missingTools(dir, 'win32'), [path.join('msys64', 'mingw64', 'bin', 'ninja.exe')]);
+  assert.deepEqual(tools.status(dir, 'win32', {}), { ready: false, mode: 'missing' });
+  const message = tools.deletedToolsError(dir, 'win32').message;
+  assert.match(message, /missing ninja\.exe\. Antivirus/);
+  assert.ok(message.includes(path.dirname(root)));
+  for (const name of ['cmake.exe', 'clang.exe', 'clang++.exe', 'python.exe', 'gcc.exe'])
+    fs.rmSync(path.join(root, 'msys64', 'mingw64', 'bin', name));
+  assert.match(tools.deletedToolsError(dir, 'win32').message, /missing gcc\.exe, clang\.exe, clang\+\+\.exe, cmake\.exe and 2 more\./);
+  // Another toolset's files say nothing about this release's.
+  fs.writeFileSync(path.join(root, 'ready.json'), JSON.stringify({ toolset: 'older', archiveSha256: tools.assetFor('win32').sha256 }));
+  assert.equal(tools.missingTools(dir, 'win32'), null);
+});
+
+test('setup unpacks tools that lost files again, and names files still missing after unpacking', x64Tools, async t => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-deleted-tools-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const root = installedTools(dir, 'linux');
+  fs.rmSync(path.join(root, 'env', 'bin', 'cmake'));
+  const staging = path.join(dir, 'fixture');
+  fs.mkdirSync(path.join(staging, 'env', 'bin'), { recursive: true });
+  fs.writeFileSync(path.join(staging, 'env', 'bin', 'g++'), 'fixture');
+  const archive = path.join(dir, 'tools.tar.gz');
+  await tar.c({ gzip: true, file: archive, cwd: staging }, ['env']);
+  const details = [];
+  await assert.rejects(tools.prepare(dir, { platform: 'linux', archiveFile: archive,
+    source: { name: 'tools.tar.gz', sha256: await tools.hashFile(archive) }, run: async () => {},
+    progress: (_percent, detail) => details.push(detail) }), error => {
+    // Only g++ was in the archive: what's still missing after unpacking is named, for the alert.
+    assert.match(error.message, /^The build tools are missing git, cmake, python3, make and \d+ more\. Then try again\.$/);
+    assert.ok(error.missingTools.includes(path.join('env', 'bin', 'cmake')));
+    return true;
+  });
+  assert.equal(details[0], 'The build tools are missing cmake. Setting them up again.');
+  // The installation it replaced comes back.
+  assert.equal(fs.existsSync(path.join(root, 'env', 'bin', 'git')), true);
+});
+
 test('matching legacy tools are reused, while changed archives get a separate root and leave old tools intact', t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-tool-versions-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -272,23 +333,4 @@ test('a real rename goes through on the first try', async () => {
     await tools.renameRetrying(path.join(dir, 'from'), path.join(dir, 'to'));
     assert.ok(fs.existsSync(path.join(dir, 'to')) && !fs.existsSync(path.join(dir, 'from')));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
-});
-
-test('Windows tools missing a program the build runs are downloaded again', t => {
-  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-win-ready-'));
-  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
-  const root = tools.rootFor(userData, 'win32');
-  const files = ['usr/bin/bash.exe', 'usr/bin/git.exe', 'usr/bin/patch.exe', 'mingw64/bin/g++.exe', 'mingw64/bin/cmake.exe',
-    'mingw64/bin/ninja.exe', 'mingw64/bin/python.exe', 'mingw64/bin/clang.exe', 'mingw64/bin/clang++.exe',
-    'mingw64/include/SDL2/SDL.h', 'opt/bin/i686-w64-mingw32-g++.exe', 'mingw32/include/SDL2/SDL.h'];
-  for (const file of files) {
-    fs.mkdirSync(path.dirname(path.join(root, 'msys64', file)), { recursive: true });
-    fs.writeFileSync(path.join(root, 'msys64', file), '');
-  }
-  fs.writeFileSync(path.join(root, 'ready.json'),
-    JSON.stringify({ toolset: tools.toolsetFor('win32'), archiveSha256: tools.assetFor('win32').sha256 }));
-  assert.equal(tools.privateReady(userData, 'win32'), true);
-  // Antivirus quarantined ninja.exe: CMake then fails with "unable to find a build program corresponding to Ninja".
-  fs.rmSync(path.join(root, 'msys64', 'mingw64', 'bin', 'ninja.exe'));
-  assert.equal(tools.privateReady(userData, 'win32'), false);
 });

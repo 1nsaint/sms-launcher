@@ -10,7 +10,8 @@
       "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before.",
       "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for.",
       "Setting up Super Mario Eclipse now shows its 900 MB download as it goes, then its unpacking and patching, instead of sitting on one line for minutes and looking stuck.",
-      "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\"."
+      "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\".",
+      "When a program in the build tools goes missing on Windows, the launcher now names it and asks you to restore it from your antivirus's quarantine or exclude the build tools folder from scanning, both while downloading the tools again and when a game build fails because of it. If files are missing right after the download, an alert asks you to check your antivirus and try again."
     ],
     "game": [
       "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",

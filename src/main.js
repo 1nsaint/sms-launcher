@@ -570,6 +570,13 @@ async function ensureBuildTools() {
       }
     });
     log('Build tools are ready.');
+  } catch (error) {
+    // Rare, and the files go again on the next try unless the player acts, so
+    // an alert rather than only a log line.
+    if (error.missingTools && process.platform === 'win32' && window)
+      void dialog.showMessageBox(window, { type: 'warning', buttons: ['OK'],
+        message: 'Build tools are missing files after downloading', detail: error.message }).catch(() => {});
+    throw error;
   } finally {
     preparingTools = false;
     if (active && !active.child && active.startedAt === startedAt) {
@@ -697,7 +704,9 @@ async function build(forceFresh = false) {
     ? port.eclipseBuildCommand(root, settings, process.platform, env)
     : port.commandFor(root, 'build', [disc], process.platform, env);
   const result = await game.buildSafely(root, settings, saveDirectory,
-    () => launch(cmd.command, cmd.args, { cwd: cmd.cwd, env: cmd.env }, settings.eclipse ? 'Build Eclipse port' : 'Build Sunshine port'),
+    // A build that fails because antivirus deleted a tool says so instead of CMake's error.
+    () => launch(cmd.command, cmd.args, { cwd: cmd.cwd, env: cmd.env }, settings.eclipse ? 'Build Eclipse port' : 'Build Sunshine port')
+      .catch(error => { throw buildTools.deletedToolsError(app.getPath('userData')) || error; }),
     undefined, source);
   // Preferences switch only after a successful build. Closing the app or a
   // failed download/build leaves the last installation selected and playable.
