@@ -23,7 +23,8 @@
       "The game plays any installed language pack, so new languages no longer need a game update.",
       "Fixed Super Mario Eclipse failing to build when the launcher's folder has a comma in its path, such as \"Recomps, Decomp and other ports\".",
       "With widescreen on, the map screen now fills the whole width, like the 16:9 map of later releases, instead of a 4:3 sheet with the level showing at both sides.",
-      "Fixed Pinna Park's climbing-cage mesh, and other HD fences and meshes, thinning out and vanishing a few metres from the camera with HD textures on."
+      "Fixed Pinna Park's climbing-cage mesh, and other HD fences and meshes, thinning out and vanishing a few metres from the camera with HD textures on.",
+      "With widescreen on, the blue screen that fades in when the camera goes inside a wall now covers the whole width, instead of only the 4:3 middle with hard edges at both sides."
     ]
   },
   "releases": [
