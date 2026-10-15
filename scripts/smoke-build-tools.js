@@ -46,7 +46,10 @@ async function main() {
   });
   if (buildTools.status(userData).mode !== 'private') throw new Error('Private tools were not prepared.');
   const toolRoot = buildTools.rootFor(userData);
-  const base = { ...process.env, PATH: process.platform === 'win32'
+  // Configure the self-tests with the game, so checking them needs no second
+  // configure (on Windows that reapplies every decomp patch, almost two minutes).
+  // Game revisions whose build.sh ignores it are reconfigured below.
+  const base = { ...process.env, SMS_GX_BUILD_TESTS: 'ON', PATH: process.platform === 'win32'
     ? path.join(process.env.SystemRoot, 'System32') : '' };
   const checkoutEnv = buildTools.environment(userData, { ...base, SMS_ARCH: '64' });
   const git = process.platform === 'win32'
@@ -152,7 +155,8 @@ async function main() {
     }
     const cmake = process.platform === 'win32'
       ? path.join(env.MSYS2_ROOT, 'mingw64', 'bin', 'cmake.exe') : path.join(toolRoot, 'env', 'bin', 'cmake');
-    await run(cmake, ['-S', root, '-B', path.dirname(binary), '-DSMS_GX_BUILD_TESTS=ON'], { cwd: root, env });
+    if (!/^SMS_GX_BUILD_TESTS:BOOL=ON$/m.test(cache))
+      await run(cmake, ['-S', root, '-B', path.dirname(binary), '-DSMS_GX_BUILD_TESTS=ON'], { cwd: root, env });
     await run(cmake, ['--build', path.dirname(binary), '--target', 'gx_windowtest', '--parallel', '2'], { cwd: root, env });
     const windowTest = path.join(path.dirname(binary), 'platform', 'gx', process.platform === 'win32' ? 'gx_windowtest.exe' : 'gx_windowtest');
     if (process.platform === 'win32') {
