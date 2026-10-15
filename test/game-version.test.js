@@ -310,3 +310,12 @@ test('records the toolset root for x64-host cross compilers as well as native co
     assert.equal(game.compilerToolRoot(root, settings), '/private/tools');
   }
 });
+
+test('game folders are named by a short commit and a hash of the rest, to keep Windows paths short', () => {
+  const snapshot = game.snapshotPath('/x/sms', { arch: '64', eclipse: false });
+  assert.equal(path.dirname(snapshot), '/x/sms.releases');
+  assert.match(path.basename(snapshot), new RegExp(`^${game.release.commit.slice(0, 7)}-[0-9a-f]{4}$`));
+  assert.equal(game.snapshotPath('/x/sms', { arch: '64', eclipse: false }), snapshot);
+  const custom = { ...game.release, custom: true, decomp: 'f'.repeat(40) };
+  assert.notEqual(game.snapshotPath('/x/sms', { arch: '64', eclipse: false }, custom), snapshot);
+});

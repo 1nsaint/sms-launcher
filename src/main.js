@@ -692,6 +692,14 @@ async function build(forceFresh = false) {
       throw new Error('The update folder has changed. Choose another setup location in Settings and try again.');
     game.carryUserFiles(original, root);
   }
+  // A path too long for Windows' compiler fails deep into the build with
+  // "No such file or directory": say why before it starts, and again if it fails.
+  const longPath = port.longPathProblem(root, settings, { portable: Boolean(portableRoot) });
+  if (longPath) {
+    log(longPath);
+    if (window) void dialog.showMessageBox(window, { type: 'warning', buttons: ['OK'],
+      message: 'The game folder is too deep for Windows', detail: longPath }).catch(() => {});
+  }
   if (!port.hdVisualsInstalled(root, settings)) await installTextures(root);
   else await updateTextureExtras(root, settings);
   await updateLanguagePack(root, settings);
@@ -703,9 +711,10 @@ async function build(forceFresh = false) {
     ? port.eclipseBuildCommand(root, settings, process.platform, env)
     : port.commandFor(root, 'build', [disc], process.platform, env);
   const result = await game.buildSafely(root, settings, saveDirectory,
-    // A build that fails because antivirus deleted a tool says so instead of CMake's error.
+    // A build that fails because antivirus deleted a tool, or in a folder too
+    // deep for Windows, says so instead of CMake's error.
     () => launch(cmd.command, cmd.args, { cwd: cmd.cwd, env: cmd.env }, settings.eclipse ? 'Build Eclipse port' : 'Build Sunshine port')
-      .catch(error => { throw buildTools.deletedToolsError(app.getPath('userData')) || error; }),
+      .catch(error => { throw buildTools.deletedToolsError(app.getPath('userData')) || (longPath && new Error(longPath)) || error; }),
     undefined, source);
   // Preferences switch only after a successful build. Closing the app or a
   // failed download/build leaves the last installation selected and playable.
