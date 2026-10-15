@@ -62,9 +62,12 @@ function privateReady(userData, platform = process.platform) {
     if (expected && installed.archiveSha256 !== expected.sha256) return false;
     if (platform === 'darwin') return ['clang', 'clang++', 'git', 'cmake', 'ninja', 'python3', 'make', 'patch', 'llvm-objcopy', '7z']
       .every(name => fs.existsSync(path.join(root, 'env', 'bin', name)));
+    // Antivirus sometimes removes one program (e.g. ninja.exe) from the
+    // tools; checking each one the build runs downloads them again instead.
     return platform === 'win32'
-      ? fs.existsSync(path.join(root, 'msys64', 'usr', 'bin', 'bash.exe')) &&
-        fs.existsSync(path.join(root, 'msys64', 'mingw64', 'bin', 'g++.exe')) &&
+      ? ['usr/bin/bash.exe', 'usr/bin/git.exe', 'usr/bin/patch.exe', 'mingw64/bin/g++.exe', 'mingw64/bin/cmake.exe',
+        'mingw64/bin/ninja.exe', 'mingw64/bin/python.exe', 'mingw64/bin/clang.exe', 'mingw64/bin/clang++.exe']
+        .every(file => fs.existsSync(path.join(root, 'msys64', file))) &&
         fs.existsSync(path.join(root, 'msys64', 'mingw64', 'include', 'SDL2', 'SDL.h')) &&
         fs.existsSync(path.join(root, 'msys64', 'opt', 'bin', 'i686-w64-mingw32-g++.exe')) &&
         fs.existsSync(path.join(root, 'msys64', 'mingw32', 'include', 'SDL2', 'SDL.h'))

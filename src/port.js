@@ -384,7 +384,7 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
     : path.resolve(__dirname, '..', 'scripts', 'texture-progress.py');
   if (platform !== 'win32') {
     const file = ['python', 'textures', 'texture-extras', 'language', 'cutscenes'].includes(action) ? 'python3' : path.join(root, `${action}.sh`);
-    const commandArgs = action === 'python' ? ['tools/mods/get.py', 'eclipse', '--iso', ...args]
+    const commandArgs = action === 'python' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'eclipse', '--iso', ...args]
       : action === 'textures' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py')]
         : action === 'texture-extras' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'extras', '--if-outdated']
         : action === 'language' ? [textureProgress, path.join(root, 'tools', 'mods', 'get.py'), 'language', args[0], '--if-outdated']
@@ -395,7 +395,7 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
   const bash = path.join(msys, 'usr', 'bin', 'bash.exe');
   if (!fs.existsSync(bash)) throw new Error(`The Windows build tools are missing. Install it at ${msys} or set MSYS2_ROOT.`);
   const script = action === 'python'
-    ? 'cd "$(cygpath -u "$1")" && python tools/mods/get.py eclipse --iso "$(cygpath -u "$2")"'
+    ? 'cd "$(cygpath -u "$1")" && python "$(cygpath -u "$2")" tools/mods/get.py eclipse --iso "$(cygpath -u "$3")"'
     : action === 'cutscenes'
       ? 'cd "$(cygpath -u "$1")" && python tools/media/install_cutscenes.py --iso "$(cygpath -u "$2")"'
     : action === 'textures'
@@ -410,7 +410,7 @@ function commandFor(root, action, args = [], platform = process.platform, enviro
   return {
     command: bash,
     args: ['-c', script, 'sms-launcher', root, ...(action === 'textures' || action === 'texture-extras' ? [textureProgress]
-      : action === 'language' ? [textureProgress, args[0]] : args)], cwd: root,
+      : action === 'language' || action === 'python' ? [textureProgress, args[0]] : args)], cwd: root,
     env: msysEnvironment(msys, environment)
   };
 }

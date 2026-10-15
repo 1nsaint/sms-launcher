@@ -273,3 +273,22 @@ test('a real rename goes through on the first try', async () => {
     assert.ok(fs.existsSync(path.join(dir, 'to')) && !fs.existsSync(path.join(dir, 'from')));
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test('Windows tools missing a program the build runs are downloaded again', t => {
+  const userData = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-win-ready-'));
+  t.after(() => fs.rmSync(userData, { recursive: true, force: true }));
+  const root = tools.rootFor(userData, 'win32');
+  const files = ['usr/bin/bash.exe', 'usr/bin/git.exe', 'usr/bin/patch.exe', 'mingw64/bin/g++.exe', 'mingw64/bin/cmake.exe',
+    'mingw64/bin/ninja.exe', 'mingw64/bin/python.exe', 'mingw64/bin/clang.exe', 'mingw64/bin/clang++.exe',
+    'mingw64/include/SDL2/SDL.h', 'opt/bin/i686-w64-mingw32-g++.exe', 'mingw32/include/SDL2/SDL.h'];
+  for (const file of files) {
+    fs.mkdirSync(path.dirname(path.join(root, 'msys64', file)), { recursive: true });
+    fs.writeFileSync(path.join(root, 'msys64', file), '');
+  }
+  fs.writeFileSync(path.join(root, 'ready.json'),
+    JSON.stringify({ toolset: tools.toolsetFor('win32'), archiveSha256: tools.assetFor('win32').sha256 }));
+  assert.equal(tools.privateReady(userData, 'win32'), true);
+  // Antivirus quarantined ninja.exe: CMake then fails with "unable to find a build program corresponding to Ninja".
+  fs.rmSync(path.join(root, 'msys64', 'mingw64', 'bin', 'ninja.exe'));
+  assert.equal(tools.privateReady(userData, 'win32'), false);
+});

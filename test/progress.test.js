@@ -123,6 +123,24 @@ test('names each Eclipse source while git downloads it', () => {
   assert.deepEqual(read('Receiving objects:  76% (123/160)'), { detail: 'Downloading files', percent: 76 });
 });
 
+test('the Eclipse install shows its download, unpacking and patching', () => {
+  const read = createActivityReader();
+  assert.equal(read('== Eclipse: Super Mario Eclipse v1.1.0 (Eclipse Team)'), null);
+  assert.deepEqual(read('Downloading Super Mario Eclipse v1.1.0 (Eclipse Team)'),
+    { detail: 'Downloading Super Mario Eclipse (about 900 MB)', percent: null });
+  assert.deepEqual(read('Texture download: 446128558/892257115 bytes'),
+    { detail: 'Downloading Super Mario Eclipse · 446.1 MB of 892.3 MB', percent: 50 });
+  assert.deepEqual(read('Checking HD texture download'), { detail: 'Checking the Eclipse download', percent: null });
+  assert.deepEqual(read('Unpacking super_mario_eclipse_v110.7z'),
+    { detail: 'Unpacking Super Mario Eclipse (a few minutes)', percent: null });
+  assert.deepEqual(read('Patching your image (a minute or two)'),
+    { detail: 'Making Super Mario Eclipse from your disc (a few minutes)', percent: null });
+  assert.deepEqual(read('Patching your image: 40%'),
+    { detail: 'Making Super Mario Eclipse from your disc (a few minutes)', percent: 40 });
+  // Other tasks keep their own wording.
+  assert.deepEqual(createActivityReader()('Checking HD texture download'), { detail: 'Checking HD textures', percent: null });
+});
+
 test('a crash is reported as a crash, not as the last warning the game printed', () => {
   // Windows: MSYS bash's report of a native crash, or the exception status itself.
   assert.equal(crashReason(2816, null, 'win32'), 'crashed with a memory access error');
