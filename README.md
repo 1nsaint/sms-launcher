@@ -116,8 +116,9 @@ The first time each HD texture is used, the game also builds its smaller version
 
 ### Language
 
-Settings → Gameplay → **Language** plays the game in English (the default), Français, Deutsch, Español or Italiano.
-The other languages come from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens, made into a small pack (about 1 MB) that the launcher downloads before the game starts.
+Settings → Gameplay → **Language** plays the game in English (the default), Français, Deutsch, Español, Italiano or Polski.
+French, German, Spanish and Italian come from the European release: dialogue, cutscene subtitles, menus, the HUD, the title screen and the memory card screens. Polish is a community translation of the text; its menus and pictures stay in English.
+Each is a small pack (about 1 MB) that the launcher downloads before the game starts. The list comes from the launcher's [`src/language-packs.json`](src/language-packs.json), so a new language needs a new pack release and a launcher update, not a game update (the game needs to be one that plays any language pack; an older one shows "Update the game to play in …").
 You still use your North American disc, and your saves work in every language.
 Super Mario Eclipse plays in English.
 

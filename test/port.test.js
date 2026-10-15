@@ -293,57 +293,93 @@ test('texture extras are downloaded again only when the port pins another releas
       [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'extras', '--if-outdated']);
 });
 
-test('the game plays in English unless another language is chosen', () => {
+// A game folder whose tools/mods/language-packs.json says what it plays.
+function gameWithLanguages(t, list) {
+  const root = temporary(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  if (list) {
+    fs.mkdirSync(path.join(root, 'tools', 'mods'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'), JSON.stringify(list));
+  }
+  return root;
+}
+const ANY = { any_language: true, languages: {} };
+
+test('the game plays in English unless another language is chosen', t => {
+  const root = gameWithLanguages(t, ANY);
   assert.equal(port.normalizeSettings({}).language, 'en');
   assert.equal(port.normalizeSettings({ language: 'klingon' }).language, 'en');
-  for (const code of ['en', 'fr', 'de', 'es', 'it']) {
+  assert.deepEqual(port.LANGUAGES, ['en', 'fr', 'de', 'es', 'it', 'pl']);
+  for (const code of port.LANGUAGES) {
     const settings = port.normalizeSettings({ language: code });
     assert.equal(settings.language, code);
-    assert.equal(port.buildEnvironment(settings, '/my/disc.iso', '/port').SMS_LANGUAGE, code);
+    assert.equal(port.buildEnvironment(settings, '/my/disc.iso', root).SMS_LANGUAGE, code);
   }
 });
 
-test('Eclipse always plays in English and keeps the chosen language for Super Mario Sunshine', () => {
-  for (const code of ['en', 'fr', 'de', 'es', 'it']) {
+test('Eclipse always plays in English and keeps the chosen language for Super Mario Sunshine', t => {
+  const root = gameWithLanguages(t, ANY);
+  for (const code of port.LANGUAGES) {
     const eclipse = port.normalizeSettings({ language: code, eclipse: true });
     assert.equal(eclipse.language, code);
-    assert.equal(port.buildEnvironment(eclipse, '/my/disc.iso', '/port').SMS_LANGUAGE, 'en');
-    assert.equal(port.buildEnvironment({ ...eclipse, eclipse: false }, '/my/disc.iso', '/port').SMS_LANGUAGE, code);
+    assert.equal(port.buildEnvironment(eclipse, '/my/disc.iso', root).SMS_LANGUAGE, 'en');
+    assert.equal(port.buildEnvironment({ ...eclipse, eclipse: false }, '/my/disc.iso', root).SMS_LANGUAGE, code);
   }
 });
 
-test('a language pack is downloaded when that language is chosen and its pinned release is missing', t => {
-  const root = temporary(); t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+test('the catalog lists every language with a release to install', () => {
+  for (const [code, pack] of Object.entries(port.LANGUAGE_PACKS)) {
+    assert.match(code, /^[a-z]{2,3}$/);
+    assert.ok(pack.name && pack.english, code);
+    assert.match(pack.url, /^https:\/\/github\.com\/chasem-dev\/sms-hd-texture-extras\/releases\/download\//);
+    assert.match(pack.md5, /^[0-9a-f]{32}$/);
+    assert.ok(Number.isInteger(pack.size) && pack.size > 0, code);
+  }
+  assert.equal(port.LANGUAGE_PACKS.pl.community, true);
+});
+
+test('a language plays only in a game that has it, and older games stay in English', t => {
+  const older = gameWithLanguages(t, null);                                     // before language packs
+  const first = gameWithLanguages(t, { languages: { fr: {}, de: {}, es: {}, it: {} } }); // the official four only
+  const any = gameWithLanguages(t, ANY);                                        // any installed pack
+  const polish = port.normalizeSettings({ language: 'pl' }), french = port.normalizeSettings({ language: 'fr' });
+  assert.equal(port.languageAvailable(older, 'fr'), false);
+  assert.equal(port.languageAvailable(first, 'fr'), true);
+  assert.equal(port.languageAvailable(first, 'pl'), false);
+  assert.equal(port.languageAvailable(any, 'pl'), true);
+  assert.equal(port.languageAvailable(any, 'xx'), false);                       // not in the catalog
+  assert.equal(port.buildEnvironment(polish, '/my/disc.iso', first).SMS_LANGUAGE, 'en');
+  assert.equal(port.buildEnvironment(french, '/my/disc.iso', older).SMS_LANGUAGE, 'en');
+  assert.equal(port.languagePackWanted(first, polish), false);                  // nothing to download for it
+  assert.deepEqual(port.languageChoices(first).map(l => [l.code, l.available]),
+    [['en', true], ['fr', true], ['de', true], ['es', true], ['it', true], ['pl', false]]);
+  assert.ok(port.languageChoices(null).every(l => l.available));               // before setup: offer them all
+});
+
+test('a language pack is downloaded when that language is chosen and the catalog\'s release is missing', t => {
+  const root = gameWithLanguages(t, ANY);
   const french = port.normalizeSettings({ language: 'fr' }), english = port.normalizeSettings({});
-  const pin = md5 => {
-    fs.mkdirSync(path.join(root, 'tools', 'mods'), { recursive: true });
-    fs.writeFileSync(path.join(root, 'tools', 'mods', 'language-packs.json'),
-      JSON.stringify({ languages: { fr: { md5 }, de: { md5: '0123456789abcdef0123456789abcdef' } } }));
-  };
   const record = md5 => {
     fs.mkdirSync(port.languagePackDirectory(root, 'fr'), { recursive: true });
     fs.writeFileSync(path.join(port.languagePackDirectory(root, 'fr'), '.release'), JSON.stringify({ md5 }));
   };
-  // A game version without language packs: nothing to download, and it plays in English.
-  assert.equal(port.languagePacksSupported(root), false);
-  assert.equal(port.languagePackWanted(root, french), false);
-  pin('9352b8c1462182ca1a5493eef4062f1e');
   assert.equal(port.languagePackWanted(root, french), true);
   assert.equal(port.languagePackWanted(root, english), false); // English is the disc's own
   assert.equal(port.languagePackWanted(root, { ...french, eclipse: true }), false); // Eclipse plays in English
-  record('9352b8c1462182ca1a5493eef4062f1e');
+  record(port.LANGUAGE_PACKS.fr.md5);
   assert.equal(port.languagePackInstalled(root, 'fr'), true);
   assert.equal(port.languagePackWanted(root, french), false);
   assert.equal(port.languagePackInstalled(root, 'de'), false);
-  pin('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');                     // a newer release pinned
+  record('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');                   // an older release installed
   assert.equal(port.languagePackWanted(root, french), true);
-  const progressScript = path.resolve(__dirname, '..', 'scripts', 'texture-progress.py');
+  const scripts = path.resolve(__dirname, '..', 'scripts');
+  const pl = port.LANGUAGE_PACKS.pl;
   for (const platform of ['linux', 'darwin'])
-    assert.deepEqual(port.commandFor(root, 'language', ['fr'], platform).args,
-      [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'language', 'fr', '--if-outdated']);
+    assert.deepEqual(port.commandFor(root, 'language', ['pl'], platform).args,
+      [path.join(scripts, 'texture-progress.py'), path.join(scripts, 'install-language.py'), 'pl', pl.name, pl.url, pl.md5, String(pl.size)]);
+  assert.throws(() => port.commandFor(root, 'language', ['xx'], 'linux'), /no language pack "xx"/);
   for (const platform of ['linux', 'darwin'])
     assert.deepEqual(port.commandFor(root, 'python', ['/games/sms.iso'], platform).args,
-      [progressScript, path.join(root, 'tools', 'mods', 'get.py'), 'eclipse', '--iso', '/games/sms.iso']);
+      [path.join(scripts, 'texture-progress.py'), path.join(root, 'tools', 'mods', 'get.py'), 'eclipse', '--iso', '/games/sms.iso']);
 });
 
 test('Eclipse builder uses its own CMake tree without bundling the patched disc', () => {
@@ -410,8 +446,10 @@ test('Windows command passes an image path as data to MSYS2 Bash', () => {
     assert.match(extras.args[1], /tools\/mods\/get\.py extras --if-outdated$/);
     assert.equal(extras.args[4], path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'));
     const language = port.commandFor('C:\\port', 'language', ['es'], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
-    assert.match(language.args[1], /tools\/mods\/get\.py language "\$3" --if-outdated$/);
-    assert.deepEqual(language.args.slice(3), ['C:\\port', path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'), 'es']);
+    assert.match(language.args[1], /python "\$\(cygpath -u "\$2"\)" "\$\(cygpath -u "\$3"\)" "\$\{@:4\}"$/);
+    const es = port.LANGUAGE_PACKS.es;
+    assert.deepEqual(language.args.slice(3), ['C:\\port', path.resolve(__dirname, '..', 'scripts', 'texture-progress.py'),
+      path.resolve(__dirname, '..', 'scripts', 'install-language.py'), 'es', es.name, es.url, es.md5, String(es.size)]);
     // The Eclipse install reports its 900 MB download through the same wrapper.
     const eclipse = port.commandFor('C:\\port', 'python', ['C:\\Games\\Sunshine.iso'], 'win32', { PATH: 'C:\\Windows', MSYS2_ROOT: dir });
     assert.match(eclipse.args[1], /python "\$\(cygpath -u "\$2"\)" tools\/mods\/get\.py eclipse --iso "\$\(cygpath -u "\$3"\)"$/);

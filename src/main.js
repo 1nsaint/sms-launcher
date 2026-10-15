@@ -634,14 +634,13 @@ async function updateTextureExtras(root, settings) {
   }
 }
 
-const LANGUAGE_NAMES = { fr: 'French', de: 'German', es: 'Spanish', it: 'Italian' };
 
 // The chosen language's pack, when it is missing or not the pinned release. A
 // failed download does not stop the game: it plays in English, and setup tries
 // again next time.
 async function updateLanguagePack(root, settings) {
   if (!port.languagePackWanted(root, settings)) return;
-  const name = LANGUAGE_NAMES[settings.language] || settings.language;
+  const name = port.LANGUAGE_PACKS[settings.language]?.english || settings.language;
   try {
     await ensureBuildTools();
     const cmd = port.commandFor(root, 'language', [settings.language], process.platform, toolEnv());
@@ -915,6 +914,7 @@ function state() {
     cutscenesInstalled: repoReady && port.cutscenePackInstalled(config.repo),
     cutscenesSupported: repoReady && port.cutscenePackSupported(config.repo),
     languagesSupported: repoReady && port.languagePacksSupported(config.repo),
+    languages: port.languageChoices(repoReady ? config.repo : null),
     languageInstalled: repoReady && config.settings.language !== 'en' && port.languagePackInstalled(config.repo, config.settings.language),
     cutsceneRequirements: repoReady ? port.cutscenePackRequirements(config.repo) : null,
     binaryReady: ready,

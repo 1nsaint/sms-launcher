@@ -253,6 +253,24 @@ test('the Discord toggle shows the setting and is saved with the others', async 
   assert.equal(ui.calls.at(-1)[1].discordPresence, false);
 });
 
+test('the Language list comes from the catalog, and a language the game lacks asks for an update', async () => {
+  const data = state(); data.config.settings = port.normalizeSettings({ language: 'pl' });
+  data.languagesSupported = true;
+  data.languages = [{ code: 'en', name: 'English', available: true }, { code: 'fr', name: 'Français', available: true },
+    { code: 'pl', name: 'Polski', community: true, available: false }];
+  const ui = await renderer(data);
+  assert.equal(ui.elements.get('language').textContent, 'EnglishFrançaisPolski');
+  assert.equal(ui.elements.get('language').value, 'pl');
+  assert.match(ui.elements.get('language-note').textContent, /Update the game to play in Polski/);
+  data.languages[2].available = true; data.languageInstalled = true;
+  await ui.refresh(); await new Promise(setImmediate);
+  assert.match(ui.elements.get('language-note').textContent, /Polski is a community translation/);
+  ui.elements.get('language').value = 'fr';
+  ui.elements.get('language').dispatch('change');
+  await new Promise(setImmediate);
+  assert.equal(ui.calls.at(-1)[1].language, 'fr');
+});
+
 test('dark mode is off by default, switches the theme at once and is saved with the others', async () => {
   const ui = await renderer(state());
   const shell = ui.elements.get('shell');
