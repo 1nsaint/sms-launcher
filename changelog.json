@@ -1,33 +1,43 @@
 {
   "_instructions": "Players see this file in the launcher. Add each player-visible change here in the same commit: launcher changes to beta.launcher, game changes Beta now builds to beta.game. Releases move beta into a new entry (npm run update:game does it). One plain sentence for players per line, no commit hashes or PR numbers. See AGENTS.md.",
   "beta": {
-    "launcher": [
-      "Rumble strength: set how hard your controller rumbles under Settings → Controls, and feel it on your controller as you move the slider. 50% matches the console; turn it up for stronger rumble, or down to 0% to turn it off.",
-      "Settings → Controls shows when a GameCube adapter is plugged in and whether the game can read it, and on Linux, Allow access gives the game permission to open it.",
-      "Fixed setup on Windows stopping with \"operation not permitted\" while the build tools were moved into place, usually because antivirus was still scanning them.",
-      "Fixed Super Mario Eclipse with a language other than English chosen: Eclipse now always plays in English, and Settings greys out Language while Eclipse is on. Your language comes back when you turn Eclipse off.",
-      "Import a Dolphin save now takes Super Mario Eclipse saves (04-GMSE-super_mario_sunshine.gci) and puts them in Eclipse's save. You can drop several saves, or the whole Dolphin memory card folder, at once: Eclipse's settings files and saves with no progress are skipped instead of replacing yours, and after importing, Settings → Saves shows which game each save is for and the Shines in each file.",
-      "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before.",
-      "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for.",
-      "Setting up Super Mario Eclipse now shows its 900 MB download as it goes, then its unpacking and patching, instead of sitting on one line for minutes and looking stuck.",
-      "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\".",
-      "When a program in the build tools goes missing on Windows, the launcher now names it and asks you to restore it from your antivirus's quarantine or exclude the build tools folder from scanning, both while downloading the tools again and when a game build fails because of it. If files are missing right after the download, an alert asks you to check your antivirus and try again.",
-      "Play in Polish: choose Polski under Settings → Gameplay → Language. It's a community translation of the game's text; menus and pictures stay in English. New languages can now come with a launcher update alone.",
-      "Game updates now go in shorter folders, so on Windows a launcher kept in a deep folder no longer fails to build with \"No such file or directory\"; if the folder is still too deep, the launcher says so before building and suggests a shorter one such as C:\\Games."
-    ],
-    "game": [
-      "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",
-      "Nintendo's GameCube controller adapter, and copies of it in Wii U mode, now work on Windows without Zadig and on Linux, and play as on a GameCube: B and X are no longer swapped, FLUDD aims only once R clicks, and controllers rumble when the adapter's second plug is connected.",
-      "Fixed Super Mario Eclipse setup failing with \"could not check out eclipse\" on computers with their own git hooks set up, and the patching step now reports its progress.",
-      "A download of HD textures, a language pack or Super Mario Eclipse that stops partway is now deleted and started over once before trying the other download site, and an unfinished one left by an earlier try no longer counts against the free space setup needs.",
-      "The game plays any installed language pack, so new languages no longer need a game update.",
-      "Fixed Super Mario Eclipse failing to build when the launcher's folder has a comma in its path, such as \"Recomps, Decomp and other ports\".",
-      "With widescreen on, the map screen now fills the whole width, like the 16:9 map of later releases, instead of a 4:3 sheet with the level showing at both sides.",
-      "Fixed Pinna Park's climbing-cage mesh, and other HD fences and meshes, thinning out and vanishing a few metres from the camera with HD textures on.",
-      "With widescreen on, the blue screen that fades in when the camera goes inside a wall now covers the whole width, instead of only the 4:3 middle with hard edges at both sides."
-    ]
+    "launcher": [],
+    "game": []
   },
   "releases": [
+    {
+      "version": "0.1.61",
+      "date": "2026-10-15",
+      "launcher": [
+        "Rumble strength: set how hard your controller rumbles under Settings → Controls, and feel it on your controller as you move the slider. 50% matches the console; turn it up for stronger rumble, or down to 0% to turn it off.",
+        "Settings → Controls shows when a GameCube adapter is plugged in and whether the game can read it, and on Linux, Allow access gives the game permission to open it.",
+        "Fixed setup on Windows stopping with \"operation not permitted\" while the build tools were moved into place, usually because antivirus was still scanning them.",
+        "Fixed Super Mario Eclipse with a language other than English chosen: Eclipse now always plays in English, and Settings greys out Language while Eclipse is on. Your language comes back when you turn Eclipse off.",
+        "Import a Dolphin save now takes Super Mario Eclipse saves (04-GMSE-super_mario_sunshine.gci) and puts them in Eclipse's save. You can drop several saves, or the whole Dolphin memory card folder, at once: Eclipse's settings files and saves with no progress are skipped instead of replacing yours, and after importing, Settings → Saves shows which game each save is for and the Shines in each file.",
+        "Add to Steam keeps your other non-Steam games safer: it backs up Steam's list before closing Steam, and if Steam loses games from the list as it closes, it puts the list from before back and stops instead of adding. It also adds to the Steam account signed in most recently, even when another account on the computer was signed in before.",
+        "Fixed Add to Steam on a Steam Deck with NonSteamLaunchers installed emptying your list of non-Steam games: NonSteamLaunchers cleared the list because the launcher saved it without the permission NonSteamLaunchers checks for.",
+        "Setting up Super Mario Eclipse now shows its 900 MB download as it goes, then its unpacking and patching, instead of sitting on one line for minutes and looking stuck.",
+        "On Windows, setup now downloads the build tools again when a program the game build needs is missing (antivirus sometimes removes one), instead of failing with \"unable to find a build program corresponding to Ninja\".",
+        "When a program in the build tools goes missing on Windows, the launcher now names it and asks you to restore it from your antivirus's quarantine or exclude the build tools folder from scanning, both while downloading the tools again and when a game build fails because of it. If files are missing right after the download, an alert asks you to check your antivirus and try again.",
+        "Play in Polish: choose Polski under Settings → Gameplay → Language. It's a community translation of the game's text; menus and pictures stay in English. New languages can now come with a launcher update alone.",
+        "Game updates now go in shorter folders, so on Windows a launcher kept in a deep folder no longer fails to build with \"No such file or directory\"; if the folder is still too deep, the launcher says so before building and suggests a shorter one such as C:\\Games."
+      ],
+      "game": {
+        "version": "2026.10.15.1",
+        "commit": "92158d913e8e42c1b3161ae651c76ad403a1af33",
+        "changes": [
+          "Rumble can now be set stronger than the console's: light rumbles run the controller's motor more often, on any controller, including a GameCube controller on an adapter.",
+          "Nintendo's GameCube controller adapter, and copies of it in Wii U mode, now work on Windows without Zadig and on Linux, and play as on a GameCube: B and X are no longer swapped, FLUDD aims only once R clicks, and controllers rumble when the adapter's second plug is connected.",
+          "Fixed Super Mario Eclipse setup failing with \"could not check out eclipse\" on computers with their own git hooks set up, and the patching step now reports its progress.",
+          "A download of HD textures, a language pack or Super Mario Eclipse that stops partway is now deleted and started over once before trying the other download site, and an unfinished one left by an earlier try no longer counts against the free space setup needs.",
+          "The game plays any installed language pack, so new languages no longer need a game update.",
+          "Fixed Super Mario Eclipse failing to build when the launcher's folder has a comma in its path, such as \"Recomps, Decomp and other ports\".",
+          "With widescreen on, the map screen now fills the whole width, like the 16:9 map of later releases, instead of a 4:3 sheet with the level showing at both sides.",
+          "Fixed Pinna Park's climbing-cage mesh, and other HD fences and meshes, thinning out and vanishing a few metres from the camera with HD textures on.",
+          "With widescreen on, the blue screen that fades in when the camera goes inside a wall now covers the whole width, instead of only the 4:3 middle with hard edges at both sides."
+        ]
+      }
+    },
     {
       "version": "0.1.60",
       "date": "2026-10-14",
