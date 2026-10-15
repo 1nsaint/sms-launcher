@@ -118,7 +118,7 @@ test('Windows tools that lose an executable after setup are no longer ready, and
   assert.equal(tools.missingTools(dir, 'win32'), null);
 });
 
-test('setup unpacks tools that lost files again, saying which were missing', x64Tools, async t => {
+test('setup unpacks tools that lost files again, and names files still missing after unpacking', x64Tools, async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sms-deleted-tools-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const root = installedTools(dir, 'linux');
@@ -131,7 +131,12 @@ test('setup unpacks tools that lost files again, saying which were missing', x64
   const details = [];
   await assert.rejects(tools.prepare(dir, { platform: 'linux', archiveFile: archive,
     source: { name: 'tools.tar.gz', sha256: await tools.hashFile(archive) }, run: async () => {},
-    progress: (_percent, detail) => details.push(detail) }), /do not match this release/); // the fixture isn't the release's archive
+    progress: (_percent, detail) => details.push(detail) }), error => {
+    // Only g++ was in the archive: what's still missing after unpacking is named, for the alert.
+    assert.match(error.message, /^The build tools are missing git, cmake, python3, make and \d+ more\. Then try again\.$/);
+    assert.ok(error.missingTools.includes(path.join('env', 'bin', 'cmake')));
+    return true;
+  });
   assert.equal(details[0], 'The build tools are missing cmake. Setting them up again.');
   // The installation it replaced comes back.
   assert.equal(fs.existsSync(path.join(root, 'env', 'bin', 'git')), true);

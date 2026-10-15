@@ -81,6 +81,10 @@ function missingTools(userData, platform = process.platform) {
     const expected = platform === 'darwin' ? macAssets.platforms[process.arch] : assets.platforms[platform];
     if (expected && installed.archiveSha256 !== expected.sha256) return null;
   } catch (_) { return null; }
+  return missingFiles(root, platform);
+}
+
+function missingFiles(root, platform) {
   return (TOOL_FILES[platform] || TOOL_FILES.linux).filter(file => !fs.existsSync(path.join(root, file)));
 }
 
@@ -404,9 +408,12 @@ async function prepare(userData, { platform = process.platform, run, progress = 
     fs.writeFileSync(path.join(root, 'ready.json'), JSON.stringify({ toolset: toolsetFor(platform), platform,
       archiveSha256: source.sha256 }), { mode: 0o600 });
     progress(null, 'Checking build tools…');
-    const missing = missingTools(userData, platform);
-    if (!missing) throw new Error('Downloaded build tools do not match this release.');
-    if (missing.length) throw new Error(missingToolsMessage(userData, missing, platform));
+    // Files gone straight after unpacking were most likely removed by
+    // antivirus; the launcher shows this error as an alert on Windows.
+    const missing = missingFiles(root, platform);
+    if (missing.length) throw Object.assign(new Error(`${missingToolsMessage(userData, missing, platform)} ` +
+      'Then try again.'), { missingTools: missing });
+    if (!privateReady(userData, platform)) throw new Error('Downloaded build tools do not match this release.');
     const env = environment(userData, process.env, platform);
     const bin = platform === 'win32' ? path.join(root, 'msys64', 'mingw64', 'bin') : path.join(root, 'env', 'bin');
     if (!commandWorks(path.join(bin, platform === 'win32' ? 'g++.exe' : platform === 'darwin' ? 'clang++' : 'g++'), ['--version'], env))

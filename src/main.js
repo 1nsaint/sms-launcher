@@ -570,6 +570,13 @@ async function ensureBuildTools() {
       }
     });
     log('Build tools are ready.');
+  } catch (error) {
+    // Rare, and the files go again on the next try unless the player acts, so
+    // an alert rather than only a log line.
+    if (error.missingTools && process.platform === 'win32' && window)
+      void dialog.showMessageBox(window, { type: 'warning', buttons: ['OK'],
+        message: 'Build tools are missing files after downloading', detail: error.message }).catch(() => {});
+    throw error;
   } finally {
     preparingTools = false;
     if (active && !active.child && active.startedAt === startedAt) {
