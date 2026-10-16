@@ -83,7 +83,9 @@
     const repeat = createRepeater();
     let frame = 0, lastFrame = 0;
 
-    const scope = () => [...document.querySelectorAll('dialog[open]')].pop() || document.body;
+    // An open menu (a popover) or dialog keeps focus inside it.
+    const scope = () => [...document.querySelectorAll('[popover]:popover-open')].pop() ||
+      [...document.querySelectorAll('dialog[open]')].pop() || document.body;
     // Small or hidden inputs, like switch checkboxes, navigate by their visible label.
     const region = element => (regions && element.closest(regions)) || element;
     // checkVisibility also rejects the contents of a closed <details>, which still have a layout box.

@@ -849,10 +849,11 @@ function stopPresence(startedAt) {
   catch (error) { log(`Could not save play time: ${error.message}`); }
 }
 
-async function launchGame() {
+// Update & play asks for the update even when updates are not automatic.
+async function launchGame(update = config.settings.autoUpdate) {
   requireRepo();
   port.validateRom(config.rom);
-  if (!binaryReady() || (config.settings.autoUpdate && !game.isCurrent(config.repo, config.settings, currentSource()))) await build();
+  if (!binaryReady() || (update && !game.isCurrent(config.repo, config.settings, currentSource()))) await build();
   if (!port.hdVisualsInstalled(config.repo, config.settings)) await installTextures();
   else await updateTextureExtras(config.repo, config.settings);
   await updateLanguagePack(config.repo, config.settings);
@@ -1194,13 +1195,13 @@ function registerHandlers() {
     'update-port': ['Update game', updatePort], 'install-eclipse': ['Install Eclipse', () => installEclipse()],
     'install-textures': ['Install UHD textures', () => installTextures()], 'build': ['Build game', () => build(true)],
     'setup-game': ['Build game', setupGame], 'play': ['Play Super Mario Sunshine', playInstalled],
-    'launch-game': ['Prepare game', launchGame],
+    'launch-game': ['Prepare game', () => launchGame()], 'update-and-play': ['Prepare game', () => launchGame(true)],
     'play-previous': ['Play Super Mario Sunshine', () => {
       if (!config.previousInstall) throw new Error('There is no previous version available.');
       return play(config.previousInstall);
     }] };
   for (const [channel, [label, callback]] of Object.entries(actions))
-    ipcMain.handle(channel, () => exclusive(label, callback, ['play', 'launch-game', 'play-previous'].includes(channel)));
+    ipcMain.handle(channel, () => exclusive(label, callback, ['play', 'launch-game', 'update-and-play', 'play-previous'].includes(channel)));
   ipcMain.handle('set-game-source', (_event, input) => exclusive('Choose game source', () => chooseGameSource(input)));
   ipcMain.handle('clean-preview', () => exclusive('Preview cleanup', () => clean(true)));
   ipcMain.handle('backup-saves', () => exclusive('Back up saves', () => makeSaveBackup('manual')));

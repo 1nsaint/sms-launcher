@@ -24,6 +24,7 @@ contextBridge.exposeInMainWorld('sms', {
   play: () => ipcRenderer.invoke('play'),
   playPrevious: () => ipcRenderer.invoke('play-previous'),
   launchGame: () => ipcRenderer.invoke('launch-game'),
+  updateAndPlay: () => ipcRenderer.invoke('update-and-play'),
   cleanPreview: () => ipcRenderer.invoke('clean-preview'),
   clean: () => ipcRenderer.invoke('clean'),
   backupSaves: () => ipcRenderer.invoke('backup-saves'),

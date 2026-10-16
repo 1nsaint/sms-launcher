@@ -37,7 +37,10 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
       setAttribute(name, value) { this[name] = value; }, removeAttribute(name) { delete this[name]; },
       replaceChildren(...children) { this.textContent = children.map(text).join(''); }, append() {}, focus() {},
       children: [], appendChild(child) { this.children.push(child); return child; },
-      close() { this.open = false; }, showModal() { this.open = true; } };
+      close() { this.open = false; }, showModal() { this.open = true; },
+      dataset: {}, getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelectorAll: () => [],
+      showPopover() { this.dispatch('beforetoggle', { newState: 'open' }); this.open = true; this.dispatch('toggle', { newState: 'open' }); },
+      hidePopover() { this.open = false; this.dispatch('toggle', { newState: 'closed' }); } };
   }
   const html = fs.readFileSync(path.resolve(__dirname, '../src/index.html'), 'utf8');
   for (const match of html.matchAll(/<[^>]*\bid="([^"]+)"[^>]*>/g)) {
@@ -56,6 +59,8 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     saveSettings: async value => { calls.push(['saveSettings', value]); return { ...data, config: { ...data.config, settings: port.normalizeSettings(value) } }; },
     changelog: async () => notes, markChangelogSeen: async () => { changelogSeen.push(true); },
     play: async () => { calls.push('play'); }, launchGame: async () => { calls.push('launchGame'); },
+    updateAndPlay: async () => { calls.push('updateAndPlay'); },
+    updatePort: async () => { calls.push('updatePort'); data.game = { ...data.game, needsUpdate: false, installedVersion: data.game.availableVersion }; },
     steamStatus: async () => ({ ...steam }), steamOffered: async prompt => { calls.push(`steamOffered:${prompt}`); },
     addToSteam: async options => { calls.push(['addToSteam', options]); steam = { ...steam, inSteam: true, needsFix: false, offer: false, offerFix: false };
       return { added: true, play: options.play, name: 'Super Mario Sunshine', artwork: 5, total: 5 }; }
@@ -79,16 +84,58 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     async click(id) { elements.get(id).click(); await new Promise(setImmediate); } };
 }
 
-test('home screen offers update or installed play and skip calls the launch-only IPC', async () => {
+const offered = ui => ['menu-update-play', 'menu-update-only', 'menu-play-now'].filter(id => !ui.elements.get(id).hidden);
+
+test('a waiting update makes Update & play the default, with Update only and Play now under ▾', async () => {
   const ui = await renderer();
-  assert.equal(ui.elements.get('installed-play-option').hidden, false);
+  assert.equal(ui.elements.get('play-more').hidden, false);
+  assert.equal(ui.elements.get('play').classList.contains('has-more'), true);
   assert.match(ui.elements.get('play').textContent, /Update & play/);
-  assert.equal(ui.elements.get('skip-update-play').textContent, 'Skip update & play');
-  assert.match(ui.elements.get('installed-play-note').textContent, /game older/);
-  await ui.click('skip-update-play');
+  assert.match(ui.elements.get('home-description').textContent, /Game update newer is ready/);
+  assert.equal(ui.elements.get('menu-default-label').textContent, 'Update & play');
+  assert.equal(ui.elements.get('menu-default-detail').textContent, 'Install newer, then start');
+  assert.deepEqual(offered(ui), ['menu-update-only', 'menu-play-now']);
+  assert.equal(ui.elements.get('menu-play-now-detail').textContent, 'Update later');
+  assert.equal(ui.elements.get('play-more-hint').textContent, '▾ for Update only or Play now');
+  assert.equal(ui.elements.get('play-menu-note').hidden, false);
+  ui.elements.get('play-menu').showPopover();
+  assert.equal(ui.elements.get('play-more')['aria-expanded'], 'true');
+  await ui.click('menu-play-now');
+  assert.equal(ui.elements.get('play-menu').open, false);
+  assert.equal(ui.elements.get('play-more')['aria-expanded'], 'false');
   assert.deepEqual(ui.calls, ['play']);
-  await ui.click('play');
+  await ui.click('menu-default');
   assert.deepEqual(ui.calls, ['play', 'launchGame']);
+});
+
+test('Update only installs the update without starting the game', async () => {
+  const ui = await renderer();
+  await ui.click('menu-update-only');
+  assert.deepEqual(ui.calls, ['updatePort']);
+  assert.equal(ui.elements.get('play-more').hidden, true);
+  assert.equal(ui.elements.get('play-more-hint').hidden, true);
+  assert.match(ui.elements.get('play').textContent, /▶ {2}Play/);
+  assert.match(ui.elements.get('message-text').textContent, /Updated to game newer/);
+});
+
+test('without automatic updates Play is the default and Update & play still updates', async () => {
+  const data = state();
+  data.config.settings = port.normalizeSettings({ autoUpdate: false });
+  const ui = await renderer(data);
+  assert.match(ui.elements.get('play').textContent, /▶ {2}Play/);
+  assert.equal(ui.elements.get('menu-default-label').textContent, 'Play');
+  assert.equal(ui.elements.get('task-status').textContent, 'Update ready');
+  assert.deepEqual(offered(ui), ['menu-update-play', 'menu-update-only']);
+  assert.equal(ui.elements.get('play-more-hint').textContent, '▾ for Update & play or Update only');
+  await ui.click('menu-update-play');
+  assert.deepEqual(ui.calls, ['updateAndPlay']);
+});
+
+test('controller Back closes the menu before anything else', async () => {
+  const ui = await renderer();
+  ui.elements.get('play-menu').showPopover();
+  ui.gamepad.actions.back();
+  assert.equal(ui.elements.get('play-menu').open, false);
 });
 
 test('Update & play shows the newly built game version once the game starts', async () => {
@@ -136,26 +183,30 @@ test('Dolphin save import offers a chooser and drop of one or more saves, report
 test('installed play is unavailable before setup, without a disc, or while busy', async () => {
   for (const patch of [{ binaryReady: false }, { romReady: false }]) {
     const ui = await renderer({ ...state(), ...patch });
-    assert.equal(ui.elements.get('installed-play-option').hidden, true);
+    assert.equal(ui.elements.get('play-more').hidden, true);
   }
   const data = state(), ui = await renderer(data);
+  ui.elements.get('play-menu').showPopover();
   data.active = { label: 'Build Sunshine port' };
   await ui.refresh();
-  assert.equal(ui.elements.get('skip-update-play').disabled, true);
-  await ui.click('skip-update-play');
-  assert.deepEqual(ui.calls, []);
+  assert.equal(ui.elements.get('play-more').disabled, true);
+  assert.equal(ui.elements.get('play-menu').open, false);
+  assert.equal(ui.elements.get('play-more-hint').hidden, true);
 });
 
 test('pending HD setup offers installed play, while current complete installs show only Play', async () => {
   const data = state(); data.game.needsUpdate = false; data.game.installedVersion = null;
   const ui = await renderer(data);
-  assert.equal(ui.elements.get('installed-play-option').hidden, true);
+  assert.equal(ui.elements.get('play-more').hidden, true);
   data.hdVisualsReady = false;
   await ui.refresh();
-  assert.equal(ui.elements.get('installed-play-option').hidden, false);
-  assert.equal(ui.elements.get('skip-update-play').textContent, 'Play installed version');
-  assert.match(ui.elements.get('installed-play-note').textContent, /your installed game/);
-  await ui.click('skip-update-play');
+  assert.equal(ui.elements.get('play-more').hidden, false);
+  assert.equal(ui.elements.get('menu-default-label').textContent, 'Finish HD setup');
+  assert.equal(ui.elements.get('menu-default').dataset.kind, 'hd');
+  assert.deepEqual(offered(ui), ['menu-play-now']);
+  assert.equal(ui.elements.get('menu-play-now-detail').textContent, 'HD visuals later');
+  assert.equal(ui.elements.get('play-menu-note').hidden, true);
+  await ui.click('menu-play-now');
   assert.deepEqual(ui.calls, ['play']);
 });
 
