@@ -31,6 +31,7 @@ const displayScale = require('./display-scale');
 const marioModel = require('./mario-model');
 const marioColors = require('./mario-colors');
 const marioPack = require('./mario-pack');
+const { relaunchOptions } = require('./relaunch');
 
 const DISCORD_INVITE = 'https://discord.gg/NvUXmm8dB9';
 // Microsoft's free Windows HDR Calibration app (Microsoft Store product 9N7F2SM5D1LR).
@@ -1225,6 +1226,15 @@ function registerHandlers() {
     return state();
   });
   ipcMain.handle('mario-model', () => ({ model: marioFrom(port.validateRom(config.rom)), look: config.marioLook }));
+  // Customize Mario's way out when its 3D view can't start: a new launcher
+  // gets a new GPU process. Not while the game or a task runs.
+  ipcMain.handle('relaunch-launcher', () => {
+    if (operation || active) throw new Error('Close the game and let the current task finish before restarting the launcher.');
+    log('Restarting the launcher to reset its graphics.');
+    app.relaunch(relaunchOptions({ argv: process.argv, env: process.env, packaged: app.isPackaged,
+      platform: process.platform, execPath: process.execPath }));
+    app.quit();
+  });
   ipcMain.handle('save-mario-look', (_event, look) => {
     config.marioLook = marioColors.normalizeLook(look);
     saveConfig();

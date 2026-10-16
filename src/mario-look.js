@@ -49,7 +49,7 @@ function show() {
   $('mario-stage').replaceWith(canvas);
   try { viewer = createViewer(canvas, model); }
   catch (_) {
-    setStatus("Your graphics driver can't show Mario in 3D here. Updating it may help.");
+    setStatus(`Mario's 3D view couldn't start. ${STUCK}`, false, true);
     return;
   }
   viewer.paint(look.colors);
@@ -61,12 +61,29 @@ function show() {
   requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add('ready')));
 }
 
-// A message over the stage; `loading` adds the spinner.
-function setStatus(text, loading = false) {
+// A message over the stage; `loading` adds the spinner, `stuck` the ways to
+// get the 3D view back.
+function setStatus(text, loading = false, stuck = false) {
   $('mario-status-text').textContent = text;
   $('mario-status').classList.toggle('loading', loading);
+  $('mario-status-actions').hidden = !stuck;
   $('mario-status').hidden = !text;
 }
+
+const STUCK = 'Try again, or restart the launcher to reset its graphics.';
+$('mario-retry').addEventListener('click', () => {
+  viewer?.dispose();
+  viewer = null;
+  setStatus('');
+  show();
+});
+$('mario-relaunch').addEventListener('click', () => {
+  $('mario-relaunch').disabled = true;
+  window.sms.relaunchLauncher().catch(error => {
+    $('mario-relaunch').disabled = false;
+    setStatus(error.message || String(error), false, true);
+  });
+});
 
 // Repaints at most once a frame while a colour picker is dragged.
 let paintQueued = false;
@@ -212,7 +229,7 @@ function createViewer(canvas, data) {
   canvas.addEventListener('webglcontextlost', () => {
     if (disposed) return;
     running = false;
-    setStatus('Mario\'s 3D view stopped. Close Customize Mario and open it again.');
+    setStatus(`Mario's 3D view stopped. ${STUCK}`, false, true);
   });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
