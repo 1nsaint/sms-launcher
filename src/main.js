@@ -30,6 +30,7 @@ const { createSessionLog } = require('./session-log');
 const displayScale = require('./display-scale');
 const marioModel = require('./mario-model');
 const marioColors = require('./mario-colors');
+const marioPack = require('./mario-pack');
 
 const DISCORD_INVITE = 'https://discord.gg/NvUXmm8dB9';
 // Microsoft's free Windows HDR Calibration app (Microsoft Store product 9N7F2SM5D1LR).
@@ -805,6 +806,8 @@ async function play(installation = null) {
   // Every style's images, Original prompts included: the pause menu's save state hint draws the buttons from them.
   env.SMS_BUTTON_PROMPT_DIR = promptDirectory();
   if (config.settings.discordPresence) env.SMS_PRESENCE = '1';
+  const look = marioLookPack(rom, root, settings);
+  if (look) env.SMS_MARIO_LOOK = look;
   if (portableRoot && !env.SMS_GX_SHADER_CACHE) {
     // The game only makes the folder for its default location.
     env.SMS_GX_SHADER_CACHE = portable.shaderCache(portableRoot, settings.arch);
@@ -822,6 +825,36 @@ async function play(installation = null) {
     stopPresence(startedAt);
     try { makeSaveBackup('after-play'); }
     catch (error) { log(`Save backup failed: ${error.message}`); }
+  }
+}
+
+// Mario's model from the chosen disc, read once per disc while the launcher runs.
+let marioCache = null;
+function marioFrom(rom) {
+  if (marioCache?.rom !== rom) marioCache = { rom, model: marioModel.loadMario(rom) };
+  return marioCache.model;
+}
+
+// Customize Mario's colours for the game: Mario's textures repainted, as a
+// pack the game reads before its texture packs (SMS_MARIO_LOOK). Made again
+// only when the colours, the disc or the HD images change; never in the way
+// of playing.
+function marioLookPack(rom, root, settings) {
+  const directory = path.join(app.getPath('userData'), 'mario-look');
+  const look = marioColors.normalizeLook(config.marioLook);
+  if (settings.eclipse || !Object.keys(look.colors).length) {
+    fs.rmSync(directory, { recursive: true, force: true });
+    return null;
+  }
+  try {
+    const started = Date.now();
+    const made = marioPack.bake({ rom, look, references: marioFrom(rom).references, directory,
+      packDirectories: settings.textures ? [port.texturePackDirectory(root)] : [] });
+    if (Date.now() - started > 250) log(`Painted Mario in your colours in ${((Date.now() - started) / 1000).toFixed(1)} s.`);
+    return made;
+  } catch (error) {
+    log(`Mario keeps his usual colours: ${error.message}`);
+    return null;
   }
 }
 
@@ -1165,13 +1198,7 @@ function registerHandlers() {
     saveConfig();
     return state();
   });
-  // Mario's model from the chosen disc, read once per disc while the launcher runs.
-  let marioCache = null;
-  ipcMain.handle('mario-model', () => {
-    const rom = port.validateRom(config.rom);
-    if (marioCache?.rom !== rom) marioCache = { rom, model: marioModel.loadMario(rom) };
-    return { model: marioCache.model, look: config.marioLook };
-  });
+  ipcMain.handle('mario-model', () => ({ model: marioFrom(port.validateRom(config.rom)), look: config.marioLook }));
   ipcMain.handle('save-mario-look', (_event, look) => {
     config.marioLook = marioColors.normalizeLook(look);
     saveConfig();

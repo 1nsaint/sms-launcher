@@ -59,7 +59,8 @@ function loadMario(rom) {
   const mario = rig(model, model.shapes.map((shape, i) => {
     const part = partOf(shape, model, i), material = model.materials[shape.material];
     const texture = textureFor(model.textures[material.textures[0]], part);
-    colors.coverage(textures[texture].width, textures[texture].height, shape.uv, shape.index, textures[texture].covered);
+    const { width, height, covered, wrapS, wrapT } = textures[texture];
+    colors.coverage(width, height, shape.uv, shape.index, covered, wrapS, wrapT);
     return { ...shape, part, texture, doubleSided: material.cull === 0 };
   }));
 

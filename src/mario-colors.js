@@ -59,8 +59,10 @@
 
   // CIE Lab, with lightness counted at half weight so shading within a region
   // matters less than its hue.
+  // sRGB 0-255 to linear light, for every value.
+  const LINEAR = Float64Array.from({ length: 256 }, (_, v) => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  const lin = v => LINEAR[Math.max(0, Math.min(255, Math.round(v)))];
   function lab([r, g, b]) {
-    const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
     const R = lin(r), G = lin(g), B = lin(b);
     const f = t => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
     const x = f((0.4124 * R + 0.3576 * G + 0.1805 * B) / 0.95047), y = f(0.2126 * R + 0.7152 * G + 0.0722 * B);
@@ -84,9 +86,13 @@
     return out;
   }
 
-  // Which texels a part's triangles cover (UVs wrap), grown by a texel so
-  // filtering at the edges reads classified texels.
-  function coverage(width, height, uv, index, out = new Uint8Array(width * height)) {
+  // Which texels a part's triangles cover, grown by a texel so filtering at
+  // the edges reads classified texels. Beyond the texture's edges texels clamp
+  // (GX wrap 0, as all of Mario's do), repeat (1) or mirror (2).
+  function coverage(width, height, uv, index, out = new Uint8Array(width * height), wrapS = 0, wrapT = 0) {
+    const address = (v, size, wrap) => wrap === 1 ? ((v % size) + size) % size
+      : wrap === 2 ? (() => { const m = ((v % (2 * size)) + 2 * size) % (2 * size); return m < size ? m : 2 * size - 1 - m; })()
+        : v >= 0 && v < size ? v : -1;
     for (let t = 0; t < index.length; t += 3) {
       const p = [0, 1, 2].map(k => [uv[index[t + k] * 2] * width - 0.5, uv[index[t + k] * 2 + 1] * height - 0.5]);
       const minX = Math.floor(Math.min(p[0][0], p[1][0], p[2][0])) - 1, maxX = Math.ceil(Math.max(p[0][0], p[1][0], p[2][0])) + 1;
@@ -100,7 +106,8 @@
       const flip = (p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[2][0] - p[0][0]) * (p[1][1] - p[0][1]) < 0 ? -1 : 1;
       for (let y = minY; y <= maxY; y++) for (let x = minX; x <= maxX; x++) {
         if (!edges.every(e => ((x - e.ax) * e.nx + (y - e.ay) * e.ny) * flip >= -1)) continue;
-        out[((y % height + height) % height) * width + ((x % width + width) % width)] = 1;
+        const tx = address(x, width, wrapS), ty = address(y, height, wrapT);
+        if (tx >= 0 && ty >= 0) out[ty * width + tx] = 1;
       }
     }
     return out;

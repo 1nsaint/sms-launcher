@@ -270,11 +270,17 @@ function readTextures(data, at) {
 }
 
 // A BTI header at `h` with offsets relative to it -> { width, height, rgba, wrapS, wrapT }.
+// `level` is the first level's bytes as stored, which the game hashes to name
+// pack replacements; `mipmapped` is whether it has more levels.
 function decodeBti(data, h) {
   const format = data[h], width = data.readUInt16BE(h + 2), height = data.readUInt16BE(h + 4);
   const palette = { format: data[h + 9], count: data.readUInt16BE(h + 10), at: h + data.readUInt32BE(h + 12) };
-  const rgba = decodeTexture(data.subarray(h + data.readUInt32BE(h + 0x1c)), format, width, height, data, palette);
-  return { width, height, rgba, format, wrapS: data[h + 6], wrapT: data[h + 7] };
+  const start = h + data.readUInt32BE(h + 0x1c);
+  const rgba = decodeTexture(data.subarray(start), format, width, height, data, palette);
+  const [bw, bh, bits] = BLOCK[format] || BLOCK[6];
+  const bytes = Math.ceil(width / bw) * bw * Math.ceil(height / bh) * bh * bits / 8;
+  return { width, height, rgba, format, wrapS: data[h + 6], wrapT: data[h + 7],
+    level: data.subarray(start, start + bytes), mipmapped: data[h + 0x18] > 1 };
 }
 
 function decodeTexture(src, format, width, height, file, palette) {
