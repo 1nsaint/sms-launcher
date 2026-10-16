@@ -425,7 +425,7 @@ function showWizardStep(data) {
   $('home-title').textContent = ready ? eclipse ? 'Super Mario Eclipse' : 'Super Mario Sunshine' : 'Set up your game';
   $('home-description').textContent = ready
     ? downloadTextures ? 'Set up HD visuals to finish setup.'
-      : data.game.needsUpdate && data.config.settings.autoUpdate ? 'An update is ready. Your saves will carry over.' : 'Ready when you are.'
+      : data.game.needsUpdate ? `Game update${data.game.availableVersion ? ` ${data.game.availableVersion}` : ''} is ready. Your saves carry over.` : 'Ready when you are.'
     : "Three steps, then you're ready to play.";
   const hd = [data.config.settings.textures && !data.texturesInstalled ? 'download HD textures' : '',
     wantsCutscenes(data) && !data.cutscenesInstalled ? 'prepare HD cutscenes using your disc image' : ''].filter(Boolean).join(' and ');
@@ -473,6 +473,21 @@ function showWizardStep(data) {
   }
 }
 
+// A waiting update always offers the same three choices: Update & play, Update only and Play now.
+// Update automatically picks which is the big button (Update & play, or Play); the others sit below it.
+// Pending HD setup offers Play now beside Finish HD setup the same way.
+function renderLaunchChoices(data) {
+  const update = data.game.needsUpdate, hd = needsTextureDownload(data);
+  const updateFirst = update && data.config.settings.autoUpdate && !hd;
+  $('launch-choices').hidden = !data.binaryReady || !data.romReady || wizardStep !== 0 || (!update && !hd);
+  $('choice-update-play').hidden = !update || updateFirst;
+  $('choice-update-only').hidden = !update;
+  $('choice-play-now').hidden = !updateFirst && !hd;
+  const later = [update ? 'update' : '', hd ? 'HD visuals' : ''].filter(Boolean).join(' and ');
+  $('choice-play-now-detail').textContent = `${later.charAt(0).toUpperCase()}${later.slice(1)} later`;
+  for (const id of ['choice-update-play', 'choice-update-only', 'choice-play-now']) $(id).disabled = Boolean(data.active) || setupPending;
+}
+
 function renderActivity(active) {
   if (active && !consoleWasActive) {
     consoleFailed = false;
@@ -489,7 +504,7 @@ function renderActivity(active) {
   $('view-build-log').textContent = active?.label.startsWith('Build ') ? 'View build log' : 'View activity';
   $('task-status').textContent = active ? taskName(active.label)
     : current?.binaryReady && needsTextureDownload(current) ? 'HD setup needed'
-    : current?.game.needsUpdate && current.config.settings.autoUpdate && current.config.completedSetup ? 'Update ready'
+    : current?.game.needsUpdate && current.config.completedSetup ? 'Update ready'
     : $('page-home').classList.contains('ready-mode') ? 'Ready to play' : 'Finish setup to play';
   if (!working) return;
   $('progress-title').textContent = taskName(active.label);
@@ -530,11 +545,7 @@ function refresh(data) {
   showWizardStep(data);
   renderMacTools(data.tools);
   $('play').disabled = Boolean(data.active) || setupPending;
-  $('installed-play-option').hidden = !data.binaryReady || !data.romReady ||
-    (!data.game.needsUpdate && !needsTextureDownload(data));
-  $('skip-update-play').disabled = Boolean(data.active) || setupPending;
-  $('skip-update-play').textContent = data.game.needsUpdate ? 'Skip update & play' : 'Play installed version';
-  $('installed-play-note').textContent = `Play ${data.game.installedVersion ? `game ${data.game.installedVersion}` : 'your installed game'} now. Update or finish HD setup when you're ready.`;
+  renderLaunchChoices(data);
   for (const button of document.querySelectorAll('[data-setup-back]')) button.disabled = Boolean(data.active) || setupPending;
   $('build').hidden = !data.binaryReady || !data.romReady;
   $('rebuild-note').hidden = $('build').hidden;
@@ -783,7 +794,7 @@ function showError(error) { closeModal(); setMessage(errorText(error), true); }
 async function action(method) {
   setMessage('');
   try {
-    if (['installPort', 'installEclipse', 'installTextures', 'build', 'setupGame', 'launchGame', 'updatePort', 'play', 'playPrevious', 'clean', 'cleanPreview'].includes(method)) closeModal();
+    if (['installPort', 'installEclipse', 'installTextures', 'build', 'setupGame', 'launchGame', 'updateAndPlay', 'updatePort', 'play', 'playPrevious', 'clean', 'cleanPreview'].includes(method)) closeModal();
     const result = await window.sms[method]();
     if (result && result.config) refresh(result);
     await sync();
@@ -965,10 +976,18 @@ function resetLog(sequence) {
 for (const [id, method] of Object.entries({
   'choose-rom': 'chooseRom', 'choose-rom-settings': 'chooseRom',
   'choose-repo-settings': 'chooseRepo', 'choose-location': 'chooseLocation',
-  'update-port': 'updatePort', 'play-installed': 'play', 'skip-update-play': 'play', 'play-previous': 'playPrevious', 'build': 'build', 'install-eclipse': 'installEclipse',
+  'play-installed': 'play', 'choice-play-now': 'play', 'play-previous': 'playPrevious', 'build': 'build', 'install-eclipse': 'installEclipse',
   'clean-preview': 'cleanPreview', clean: 'clean', 'backup-saves': 'backupSaves',
   'open-backups': 'openBackups', stop: 'stop', docs: 'openDocs'
 })) $(id).addEventListener('click', () => action(method));
+// Update only builds the new game and stays in the launcher.
+async function updateOnly() {
+  await action('updatePort');
+  if (current.binaryReady && !current.game.needsUpdate && !current.active)
+    setMessage(`Updated to game ${current.game.installedVersion || current.game.availableVersion}. Play whenever you're ready.`);
+}
+for (const id of ['update-port', 'choice-update-only']) $(id).addEventListener('click', updateOnly);
+$('choice-update-play').addEventListener('click', () => runWizardAction('updateAndPlay'));
 // The invite opens in the browser, even while the game builds or runs.
 $('discord').addEventListener('click', () => window.sms.openDiscord().catch(error => setMessage(errorText(error))));
 

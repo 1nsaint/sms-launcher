@@ -55,7 +55,8 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
         },
         environment(_userData, env) { return { ...env, MSYS2_ROOT: path.join(toolRoot, 'msys64') }; },
         async ensure() { throw new Error('Playing must not prepare new tools'); },
-        async check() { throw new Error('Playing must not prepare new tools'); } };
+        async check() { throw new Error('Playing must not prepare new tools'); },
+        status() { throw new Error('Playing must not prepare new tools'); } };
       if (name === './discord') return { createPresence: () => ({ set: activity => activities.push(activity), stop() {} }) };
       if (name === './saves') return {
         backupRoot: () => path.join(directory, 'backups'),
@@ -73,7 +74,7 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
   vm.runInContext(fs.readFileSync(sourcePath, 'utf8') + '\nconfig = fixtureConfig; registerHandlers();' +
     '\nglobalThis.logText = () => JSON.stringify(activityLog.snapshot());', context);
   return { config, starts, backups, environments, activities, binary, record, toolRoot, root, play: () => handlers.get('play')(),
-    playDirectly: () => context.playDirectly(), logText: () => context.logText() };
+    invoke: name => handlers.get(name)(), playDirectly: () => context.playDirectly(), logText: () => context.logText() };
 }
 
 test('skip update launches the older installed game, keeps preferences and saves, and never builds or downloads', async t => {
@@ -133,6 +134,15 @@ test('skip update cannot start a missing executable or invalid disc', async t =>
   fs.writeFileSync(f.config.rom, 'bad disc');
   await assert.rejects(f.play(), /too small/);
   assert.equal(f.starts.length, 0);
+});
+
+test('without automatic updates Play keeps the installed game, while Update & play builds the update first', async t => {
+  const f = fixture(t, { autoUpdate: false, textures: true });
+  await f.invoke('launch-game');
+  assert.equal(f.starts.length, 1);
+  assert.equal(fs.readFileSync(f.binary, 'utf8'), 'installed executable');
+  await assert.rejects(f.invoke('update-and-play'), /Playing must not prepare new tools/);
+  assert.equal(f.starts.length, 1);
 });
 
 // `--play`: a Steam shortcut starts the game without the launcher's window.

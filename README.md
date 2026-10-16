@@ -124,7 +124,7 @@ Super Mario Eclipse plays in English.
 
 ### Updates
 
-When a game update is ready, the main button becomes **Update & play**. Choose **Skip update & play** beside it to launch your installed version without downloading or rebuilding. Your current game stays available until the new setup succeeds.
+When a game update is ready, the launcher offers three choices: **Update & play**, **Update only** (install the update and stay in the launcher) and **Play now** (start your installed version without downloading or rebuilding). With **Update automatically** on, Update & play is the main button; with it off, Play is. Your current game stays available until the new setup succeeds.
 
 If optional HD downloads are unfinished, **Play installed version** also lets you play now using the packs already installed. Missing HD packs stay off for that launch; your visual preferences remain saved for later setup.
 

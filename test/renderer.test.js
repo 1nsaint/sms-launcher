@@ -56,6 +56,8 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     saveSettings: async value => { calls.push(['saveSettings', value]); return { ...data, config: { ...data.config, settings: port.normalizeSettings(value) } }; },
     changelog: async () => notes, markChangelogSeen: async () => { changelogSeen.push(true); },
     play: async () => { calls.push('play'); }, launchGame: async () => { calls.push('launchGame'); },
+    updateAndPlay: async () => { calls.push('updateAndPlay'); },
+    updatePort: async () => { calls.push('updatePort'); data.game = { ...data.game, needsUpdate: false, installedVersion: data.game.availableVersion }; },
     steamStatus: async () => ({ ...steam }), steamOffered: async prompt => { calls.push(`steamOffered:${prompt}`); },
     addToSteam: async options => { calls.push(['addToSteam', options]); steam = { ...steam, inSteam: true, needsFix: false, offer: false, offerFix: false };
       return { added: true, play: options.play, name: 'Super Mario Sunshine', artwork: 5, total: 5 }; }
@@ -79,16 +81,40 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     async click(id) { elements.get(id).click(); await new Promise(setImmediate); } };
 }
 
-test('home screen offers update or installed play and skip calls the launch-only IPC', async () => {
+const shown = ui => ['choice-update-play', 'choice-update-only', 'choice-play-now'].filter(id => !ui.elements.get(id).hidden);
+
+test('a waiting update offers Update & play first, then Update only and Play now', async () => {
   const ui = await renderer();
-  assert.equal(ui.elements.get('installed-play-option').hidden, false);
+  assert.equal(ui.elements.get('launch-choices').hidden, false);
   assert.match(ui.elements.get('play').textContent, /Update & play/);
-  assert.equal(ui.elements.get('skip-update-play').textContent, 'Skip update & play');
-  assert.match(ui.elements.get('installed-play-note').textContent, /game older/);
-  await ui.click('skip-update-play');
+  assert.match(ui.elements.get('home-description').textContent, /Game update newer is ready/);
+  assert.deepEqual(shown(ui), ['choice-update-only', 'choice-play-now']);
+  assert.equal(ui.elements.get('choice-play-now-detail').textContent, 'Update later');
+  await ui.click('choice-play-now');
   assert.deepEqual(ui.calls, ['play']);
   await ui.click('play');
   assert.deepEqual(ui.calls, ['play', 'launchGame']);
+});
+
+test('Update only installs the update without starting the game', async () => {
+  const ui = await renderer();
+  await ui.click('choice-update-only');
+  assert.deepEqual(ui.calls, ['updatePort']);
+  assert.equal(ui.elements.get('launch-choices').hidden, true);
+  assert.match(ui.elements.get('play').textContent, /▶ {2}Play/);
+  assert.match(ui.elements.get('message-text').textContent, /Updated to game newer/);
+});
+
+test('without automatic updates Play comes first and Update & play still updates', async () => {
+  const data = state();
+  data.config.settings = port.normalizeSettings({ autoUpdate: false });
+  const ui = await renderer(data);
+  assert.match(ui.elements.get('play').textContent, /▶ {2}Play/);
+  assert.match(ui.elements.get('home-description').textContent, /Game update newer is ready/);
+  assert.equal(ui.elements.get('task-status').textContent, 'Update ready');
+  assert.deepEqual(shown(ui), ['choice-update-play', 'choice-update-only']);
+  await ui.click('choice-update-play');
+  assert.deepEqual(ui.calls, ['updateAndPlay']);
 });
 
 test('Update & play shows the newly built game version once the game starts', async () => {
@@ -136,26 +162,28 @@ test('Dolphin save import offers a chooser and drop of one or more saves, report
 test('installed play is unavailable before setup, without a disc, or while busy', async () => {
   for (const patch of [{ binaryReady: false }, { romReady: false }]) {
     const ui = await renderer({ ...state(), ...patch });
-    assert.equal(ui.elements.get('installed-play-option').hidden, true);
+    assert.equal(ui.elements.get('launch-choices').hidden, true);
   }
   const data = state(), ui = await renderer(data);
   data.active = { label: 'Build Sunshine port' };
   await ui.refresh();
-  assert.equal(ui.elements.get('skip-update-play').disabled, true);
-  await ui.click('skip-update-play');
+  for (const id of ['choice-update-play', 'choice-update-only', 'choice-play-now']) {
+    assert.equal(ui.elements.get(id).disabled, true);
+    await ui.click(id);
+  }
   assert.deepEqual(ui.calls, []);
 });
 
 test('pending HD setup offers installed play, while current complete installs show only Play', async () => {
   const data = state(); data.game.needsUpdate = false; data.game.installedVersion = null;
   const ui = await renderer(data);
-  assert.equal(ui.elements.get('installed-play-option').hidden, true);
+  assert.equal(ui.elements.get('launch-choices').hidden, true);
   data.hdVisualsReady = false;
   await ui.refresh();
-  assert.equal(ui.elements.get('installed-play-option').hidden, false);
-  assert.equal(ui.elements.get('skip-update-play').textContent, 'Play installed version');
-  assert.match(ui.elements.get('installed-play-note').textContent, /your installed game/);
-  await ui.click('skip-update-play');
+  assert.equal(ui.elements.get('launch-choices').hidden, false);
+  assert.deepEqual(shown(ui), ['choice-play-now']);
+  assert.equal(ui.elements.get('choice-play-now-detail').textContent, 'HD visuals later');
+  await ui.click('choice-play-now');
   assert.deepEqual(ui.calls, ['play']);
 });
 
