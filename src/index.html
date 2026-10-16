@@ -240,7 +240,7 @@
     <dialog id="mario-look" class="launcher-modal mario-look-modal" aria-label="Customize Mario">
       <div class="modal-head"><div><h1>Customize Mario</h1><p>Mario as he is on your disc. Drag to turn him around, scroll to zoom.</p></div><button class="modal-close" data-close-modal aria-label="Close Customize Mario">×</button></div>
       <div class="mario-look-body">
-        <div class="mario-stage-wrap"><canvas id="mario-stage" class="mario-stage" tabindex="0" aria-label="Mario, drag or use the arrow keys to turn him"></canvas><p id="mario-status" class="mario-status" role="status" hidden></p><p class="mario-preview-note">Preview: the game doesn't use these colours yet.</p></div>
+        <div class="mario-stage-wrap"><canvas id="mario-stage" class="mario-stage" tabindex="0" aria-label="Mario, drag or use the arrow keys to turn him"></canvas><div id="mario-status" class="mario-status" role="status" hidden><span class="mario-loader" aria-hidden="true"></span><span id="mario-status-text"></span></div><p class="mario-preview-note">Preview: the game doesn't use these colours yet.</p></div>
         <div class="mario-panel"><div id="mario-presets" class="mario-presets" role="group" aria-label="Presets"></div><div id="mario-regions"></div></div>
       </div>
     </dialog>

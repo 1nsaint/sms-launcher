@@ -24,7 +24,7 @@ dialog.addEventListener('close', () => {
 });
 
 async function load() {
-  setStatus('Reading Mario from your disc…');
+  setStatus('Reading Mario from your disc…', true);
   try {
     const result = await window.sms.marioModel();
     model = result.model;
@@ -37,13 +37,17 @@ async function load() {
     viewer.setFludd(look.fludd, look.nozzle);
     if (dialog.open) viewer.start();
     setStatus('');
+    // Fade Mario in once his first frame is drawn.
+    requestAnimationFrame(() => requestAnimationFrame(() => $('mario-stage').classList.add('ready')));
   } catch (error) {
     setStatus(error.message || String(error));
   } finally { loading = null; }
 }
 
-function setStatus(text) {
-  $('mario-status').textContent = text;
+// A message over the stage; `loading` adds the spinner.
+function setStatus(text, loading = false) {
+  $('mario-status-text').textContent = text;
+  $('mario-status').classList.toggle('loading', loading);
   $('mario-status').hidden = !text;
 }
 

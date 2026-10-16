@@ -117,7 +117,7 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 }
 @media (max-height: 720px) { .intro .eyebrow { display: none; } .intro { min-height: 46px; } }
 @media (max-width: 920px) { .topbar { gap: 14px; padding: 0 18px; } .viewport, .statusbar { padding-left: 18px; padding-right: 18px; } .brand { min-width: 160px; } .tab { padding: 0 9px; } .setup-panel { padding-left: 14px; padding-right: 14px; } }
-@media (prefers-reduced-motion: reduce) { .spinner, .progress-track.indeterminate #progress-fill, .status-icon.checking svg { animation-duration: 3s; } }
+@media (prefers-reduced-motion: reduce) { .spinner, .mario-loader, .progress-track.indeterminate #progress-fill, .status-icon.checking svg { animation-duration: 3s; } .mario-stage { transition: none; } }
 
 /* The supplied seaside artwork is the launch screen's full-window backdrop. */
 :root { background: #0a3045; }
@@ -540,10 +540,16 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 .mario-look-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px; }
 .mario-stage-wrap { position: relative; min-height: 0; overflow: hidden; background: radial-gradient(ellipse 70% 55% at 50% 42%, #ffffff 0%, #dff1f4 55%, #b9dde4 100%); }
 .mario-stage-wrap::after { position: absolute; left: 50%; bottom: 13%; width: 38%; height: 6%; border-radius: 50%; background: radial-gradient(closest-side, #1a46564d, transparent); transform: translateX(-50%); content: ''; pointer-events: none; }
-.mario-stage { position: relative; z-index: 1; display: block; width: 100%; height: 100%; cursor: grab; outline: none; touch-action: none; }
+.mario-stage { position: relative; z-index: 1; display: block; width: 100%; height: 100%; cursor: grab; outline: none; touch-action: none; opacity: 0; transition: opacity .35s ease-out; }
+.mario-stage.ready { opacity: 1; }
 .mario-stage:active { cursor: grabbing; }
 .mario-stage:focus-visible { box-shadow: inset 0 0 0 3px #2fa3b0; }
-.mario-status { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 30px; color: #2c5560; font-size: 14px; font-weight: 650; text-align: center; }
+.mario-status { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 30px; color: #2c5560; font-size: 14px; font-weight: 650; text-align: center; }
+.mario-status[hidden] { display: none; }
+.mario-loader { display: none; width: 48px; height: 48px; border: 5px solid #20788924; border-top-color: #e3322c; border-right-color: #f2cc22; border-bottom-color: #2f6fd6; border-radius: 50%; animation: spin .9s linear infinite; }
+.mario-status.loading .mario-loader { display: block; }
+.mario-status.loading #mario-status-text { animation: mario-pulse 1.6s ease-in-out infinite; }
+@keyframes mario-pulse { 50% { opacity: .55; } }
 .mario-preview-note { position: absolute; left: 14px; bottom: 12px; z-index: 2; padding: 5px 10px; border-radius: 20px; background: #ffffffc7; color: #4d6a71; font-size: 11px; pointer-events: none; }
 .mario-panel { min-height: 0; overflow: auto; padding: 16px 20px 22px; border-left: 1px solid #dce7e6; background: #f8faf9; }
 .mario-presets { display: flex; flex-wrap: wrap; gap: 6px; }
