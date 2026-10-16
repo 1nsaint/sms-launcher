@@ -218,8 +218,8 @@ function loadConfig() {
 }
 
 // A portable folder copied to another drive or computer plays from where it is
-// now: its updates' links follow it, and a disc left on the old computer is
-// found in the folder or beside the .exe.
+// now: its updates' links follow it, and when the chosen disc stayed behind, a
+// disc kept in the folder or beside the .exe is used.
 function settleMovedPortableFolder() {
   for (const root of [config.repo, config.previousInstall?.repo].filter(Boolean)) {
     try {
@@ -233,31 +233,6 @@ function settleMovedPortableFolder() {
   config.rom = disc;
   log(`Using the game disc at ${disc}.`);
   try { saveConfig(); } catch (error) { log(`Could not save preferences: ${error.message}`); }
-}
-
-// The game reads the disc whenever it runs, so the portable launcher keeps a
-// copy in its folder: copied to another computer, the folder plays there too.
-async function keepDiscInPortableFolder(rom) {
-  if (!portableRoot || portable.inside(portableRoot, rom)) return rom;
-  const copy = path.join(portable.discFolder(portableRoot), path.basename(rom));
-  try {
-    if (fs.statSync(copy, { throwIfNoEntry: false })?.size === fs.statSync(rom).size) return port.validateRom(copy);
-    return await exclusive('Copy disc into the portable folder', async () => {
-      operation.detail = `Copying ${path.basename(rom)} into ${portable.FOLDER} so the folder plays on other computers…`;
-      broadcast('activity', operation);
-      fs.mkdirSync(path.dirname(copy), { recursive: true });
-      const partial = `${copy}.part`;
-      try {
-        await fs.promises.copyFile(rom, partial);
-        fs.renameSync(partial, copy);
-      } finally { fs.rmSync(partial, { force: true }); }
-      log(`Copied your disc into ${path.dirname(copy)}.`);
-      return port.validateRom(copy);
-    });
-  } catch (error) {
-    log(`Could not copy your disc into the portable folder, so it plays from where it is: ${error.message}`);
-    return rom;
-  }
 }
 
 async function exclusive(label, callback, newLog = false) {
@@ -1238,7 +1213,7 @@ function registerHandlers() {
       properties: ['openFile'], filters: [{ name: 'Game disc files', extensions: ['iso', 'gcm', 'ciso'] }]
     });
     if (chosen.canceled) return state();
-    config.rom = await keepDiscInPortableFolder(port.validateRom(chosen.filePaths[0]));
+    config.rom = port.validateRom(chosen.filePaths[0]);
     saveConfig();
     return state();
   });

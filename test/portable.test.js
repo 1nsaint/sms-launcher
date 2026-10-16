@@ -91,7 +91,6 @@ test('a disc left on the old computer is found in the portable folder or beside 
   assert.equal(portable.findDisc(base, validate), null);
   fs.writeFileSync(path.join(home, 'Sunshine.ISO'), 'GMSE01');
   assert.equal(portable.findDisc(base, validate), path.join(home, 'Sunshine.ISO'));
-  fs.mkdirSync(portable.discFolder(base));
-  fs.writeFileSync(path.join(base, 'disc', 'sms.ciso'), 'GMSE01');
-  assert.equal(portable.findDisc(base, validate), path.join(base, 'disc', 'sms.ciso'));
+  fs.writeFileSync(path.join(base, 'sms.ciso'), 'GMSE01');
+  assert.equal(portable.findDisc(base, validate), path.join(base, 'sms.ciso'));
 });

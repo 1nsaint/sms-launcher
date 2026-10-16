@@ -50,14 +50,11 @@ function relocated(file, base) {
   return fs.existsSync(moved) ? moved : file;
 }
 
-// The game reads the player's disc whenever it runs, so the portable folder
-// keeps a copy of it here to play on another computer.
-function discFolder(base) { return path.join(base, 'disc'); }
-
-// A disc in the portable folder, or beside the launcher's .exe, for a folder
-// whose chosen disc stayed on the computer it came from.
+// The game reads the player's disc whenever it runs. A disc in the portable
+// folder, or beside the launcher's .exe, for a folder whose chosen disc
+// stayed on the computer it came from.
 function findDisc(base, validate) {
-  for (const directory of [discFolder(base), base, path.dirname(base)]) {
+  for (const directory of [base, path.dirname(base)]) {
     let names;
     try { names = fs.readdirSync(directory).sort(); } catch (_) { continue; }
     for (const name of names) {
@@ -77,4 +74,4 @@ function shaderCache(base, arch) {
 // The same for the mip levels the game makes for HD textures (texture-mips beside the shaders).
 function textureCache(base) { return path.join(base, 'cache', 'texture-mips'); }
 
-module.exports = { FOLDER, root, inside, storedPaths, resolvedPaths, relocated, discFolder, findDisc, shaderCache, textureCache };
+module.exports = { FOLDER, root, inside, storedPaths, resolvedPaths, relocated, findDisc, shaderCache, textureCache };
