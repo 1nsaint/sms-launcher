@@ -214,6 +214,50 @@ function loadConfig() {
         catch (error) { log(`Game recovery: ${error.message}`); }
       }
   config.completedSetup ||= fs.existsSync(port.binaryPath(config.repo, config.settings));
+  if (portableRoot) settleMovedPortableFolder();
+}
+
+// A portable folder copied to another drive or computer plays from where it is
+// now: its updates' links follow it, and a disc left on the old computer is
+// found in the folder or beside the .exe.
+function settleMovedPortableFolder() {
+  for (const root of [config.repo, config.previousInstall?.repo].filter(Boolean)) {
+    try {
+      const relinked = game.relinkUserFolders(root, file => portable.relocated(file, portableRoot));
+      if (relinked.length) log(`Reconnected ${relinked.join(', ')} after the portable folder moved.`);
+    } catch (error) { log(`Could not reconnect the game's files after the portable folder moved: ${error.message}`); }
+  }
+  try { port.validateRom(config.rom); return; } catch (_) { /* missing or never chosen */ }
+  const disc = portable.findDisc(portableRoot, port.validateRom);
+  if (!disc) return;
+  config.rom = disc;
+  log(`Using the game disc at ${disc}.`);
+  try { saveConfig(); } catch (error) { log(`Could not save preferences: ${error.message}`); }
+}
+
+// The game reads the disc whenever it runs, so the portable launcher keeps a
+// copy in its folder: copied to another computer, the folder plays there too.
+async function keepDiscInPortableFolder(rom) {
+  if (!portableRoot || portable.inside(portableRoot, rom)) return rom;
+  const copy = path.join(portable.discFolder(portableRoot), path.basename(rom));
+  try {
+    if (fs.statSync(copy, { throwIfNoEntry: false })?.size === fs.statSync(rom).size) return port.validateRom(copy);
+    return await exclusive('Copy disc into the portable folder', async () => {
+      operation.detail = `Copying ${path.basename(rom)} into ${portable.FOLDER} so the folder plays on other computers…`;
+      broadcast('activity', operation);
+      fs.mkdirSync(path.dirname(copy), { recursive: true });
+      const partial = `${copy}.part`;
+      try {
+        await fs.promises.copyFile(rom, partial);
+        fs.renameSync(partial, copy);
+      } finally { fs.rmSync(partial, { force: true }); }
+      log(`Copied your disc into ${path.dirname(copy)}.`);
+      return port.validateRom(copy);
+    });
+  } catch (error) {
+    log(`Could not copy your disc into the portable folder, so it plays from where it is: ${error.message}`);
+    return rom;
+  }
 }
 
 async function exclusive(label, callback, newLog = false) {
@@ -769,7 +813,7 @@ async function displayInfo() {
   if (process.platform !== 'win32') return { displays: [], error: 'HDR settings are for Windows.' };
   const root = config.repo, settings = config.settings;
   if (!root || !binaryReady(root, settings)) return { displays: [], error: 'Set up the game first to read your display.' };
-  const recordedTools = game.installed(root, settings)?.toolRoot || game.compilerToolRoot(root, settings);
+  const recordedTools = game.toolRoot(root, settings);
   const base = { ...process.env, SMS_ARCH: settings.arch };
   const env = recordedTools ? buildTools.environmentAtRoot(recordedTools, base) : toolEnv(base);
   const cmd = port.commandFor(root, 'run', ['--display-info'], process.platform, env);
@@ -792,7 +836,7 @@ async function play(installation = null) {
   const disc = port.gameDisc(root, rom, settings.eclipse);
   makeSaveBackup('before-play');
   const saveDir = saves.prepareSaveDirectory(currentSaveDirectory());
-  const recordedTools = game.installed(root, settings)?.toolRoot || game.compilerToolRoot(root, settings);
+  const recordedTools = game.toolRoot(root, settings);
   const env = recordedTools
     ? buildTools.environmentAtRoot(recordedTools, { ...port.buildEnvironment(settings, disc, root), SMS_SAVE_DIR: saveDir })
     : toolEnv({ ...port.buildEnvironment(settings, disc, root), SMS_SAVE_DIR: saveDir });
@@ -1194,7 +1238,7 @@ function registerHandlers() {
       properties: ['openFile'], filters: [{ name: 'Game disc files', extensions: ['iso', 'gcm', 'ciso'] }]
     });
     if (chosen.canceled) return state();
-    config.rom = port.validateRom(chosen.filePaths[0]);
+    config.rom = await keepDiscInPortableFolder(port.validateRom(chosen.filePaths[0]));
     saveConfig();
     return state();
   });

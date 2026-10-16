@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('node:fs');
 const path = require('node:path');
 
 // The Windows portable build keeps everything in this folder beside its .exe.
@@ -38,6 +39,35 @@ function resolvedPaths(saved, base) {
   return mapPaths(saved, value => path.isAbsolute(value) ? value : path.resolve(base, value));
 }
 
+// A path recorded inside the portable folder before it moved, such as the
+// build tools a game was built with, moved to where the folder is now.
+function relocated(file, base) {
+  if (!base || typeof file !== 'string' || !(path.isAbsolute(file) || path.win32.isAbsolute(file)) || fs.existsSync(file)) return file;
+  const parts = file.split(/[\\/]+/);
+  const index = parts.map(part => part.toLowerCase()).lastIndexOf(FOLDER.toLowerCase());
+  if (index < 0) return file;
+  const moved = path.join(base, ...parts.slice(index + 1));
+  return fs.existsSync(moved) ? moved : file;
+}
+
+// The game reads the player's disc whenever it runs, so the portable folder
+// keeps a copy of it here to play on another computer.
+function discFolder(base) { return path.join(base, 'disc'); }
+
+// A disc in the portable folder, or beside the launcher's .exe, for a folder
+// whose chosen disc stayed on the computer it came from.
+function findDisc(base, validate) {
+  for (const directory of [discFolder(base), base, path.dirname(base)]) {
+    let names;
+    try { names = fs.readdirSync(directory).sort(); } catch (_) { continue; }
+    for (const name of names) {
+      if (!/\.(?:iso|gcm|ciso)$/i.test(name)) continue;
+      try { return validate(path.join(directory, name)); } catch (_) { /* not this game's disc */ }
+    }
+  }
+  return null;
+}
+
 // The game keeps its compiled shaders in %LOCALAPPDATA%\sms-port unless told
 // otherwise; the portable build keeps them with everything else.
 function shaderCache(base, arch) {
@@ -47,4 +77,4 @@ function shaderCache(base, arch) {
 // The same for the mip levels the game makes for HD textures (texture-mips beside the shaders).
 function textureCache(base) { return path.join(base, 'cache', 'texture-mips'); }
 
-module.exports = { FOLDER, root, storedPaths, resolvedPaths, shaderCache, textureCache };
+module.exports = { FOLDER, root, inside, storedPaths, resolvedPaths, relocated, discFolder, findDisc, shaderCache, textureCache };

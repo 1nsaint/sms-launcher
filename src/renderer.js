@@ -440,6 +440,9 @@ function showWizardStep(data) {
   const needsMacTools = data.platform.id === 'macos' && !data.tools.appleReady;
   $('mac-setup-help').hidden = !needsMacTools;
   $('mac-tools-settings').hidden = data.platform.id !== 'macos';
+  $('rom-note').textContent = data.portable
+    ? 'A copy goes in the SMS-Launcher-Portable folder, so the folder plays on other computers too.'
+    : 'Your disc image stays on your computer.';
   $('tool-location-note').textContent = data.portable
     ? 'Setup files and tools download to the SMS-Launcher-Portable folder beside the launcher.'
     : data.platform.id === 'macos'

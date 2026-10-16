@@ -6,6 +6,7 @@ const crypto = require('node:crypto');
 const port = require('./port');
 const tools = require('./build-tools');
 const saves = require('./saves');
+const portable = require('./portable');
 const release = require('./game-release.json');
 
 // A checkout's Git folder, following a submodule's `gitdir:` file.
@@ -63,16 +64,24 @@ function compilerToolRoot(root, settings) {
   } catch (_) { return null; }
 }
 
+// The tools a build was made with, whose runtime libraries the game loads: its
+// record's, or its CMake cache's for builds from before records. A portable
+// folder that moved to another drive or computer took them along.
+function toolRoot(root, settings, base = portable.root()) {
+  const recorded = installed(root, settings)?.toolRoot || compilerToolRoot(root, settings);
+  return recorded ? portable.relocated(recorded, base) : null;
+}
+
 function matchesSource(root, source = release) {
   return gitRevision(root) === source.commit && gitRevision(path.join(root, 'decomp')) === source.decomp;
 }
 
-function isCurrent(root, settings, source = release) {
+function isCurrent(root, settings, source = release, base = portable.root()) {
   if (!fs.existsSync(port.binaryPath(root, settings))) return false;
   const record = installed(root, settings);
   const expected = identity(settings, undefined, undefined, source);
   return Boolean(record && Object.keys(expected).every(key => record[key] === expected[key]) &&
-    (!record.toolRoot || fs.existsSync(record.toolRoot)) && matchesSource(root, source));
+    (!record.toolRoot || fs.existsSync(portable.relocated(record.toolRoot, base))) && matchesSource(root, source));
 }
 
 // Short, since Windows builds can't use paths of 260 characters or more
@@ -165,6 +174,23 @@ function carryUserFiles(previous, next) {
     // A Windows directory junction requires no administrator/developer mode.
     fs.symlinkSync(fs.realpathSync(origin), target, process.platform === 'win32' ? 'junction' : 'dir');
   }
+}
+
+// Links to an earlier version's packs keep its absolute path (Windows junctions
+// must), so after a portable folder moves they point where it used to be.
+// Point them at the same folders in its new place.
+function relinkUserFolders(root, relocate) {
+  const relinked = [];
+  for (const folder of USER_FOLDERS) {
+    const link = path.join(root, 'mods', folder);
+    if (!fs.lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink() || fs.existsSync(link)) continue;
+    const target = relocate(path.resolve(path.dirname(link), fs.readlinkSync(link)));
+    if (!fs.existsSync(target)) continue;
+    fs.unlinkSync(link);
+    fs.symlinkSync(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+    relinked.push(folder);
+  }
+  return relinked;
 }
 
 function contains(parent, child) {
@@ -261,4 +287,4 @@ function recoverBuild(root, settings) {
   return true;
 }
 
-module.exports = { release, gitRevision, matchesSource, identity, installed, compilerToolRoot, isCurrent, snapshotPath, checkout, carryUserFiles, pruneSnapshots, buildSafely, recoverBuild };
+module.exports = { release, gitRevision, matchesSource, identity, installed, compilerToolRoot, toolRoot, isCurrent, snapshotPath, checkout, carryUserFiles, relinkUserFolders, pruneSnapshots, buildSafely, recoverBuild };
