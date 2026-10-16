@@ -46,7 +46,7 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
   const context = vm.createContext({ console, process, Buffer, setTimeout, setInterval, __dirname: path.dirname(sourcePath),
     require(name) {
       if (name === 'electron') return {
-        app: { requestSingleInstanceLock: () => true, whenReady: () => new Promise(() => {}), on() {}, getPath: () => directory },
+        app: { requestSingleInstanceLock: () => true, commandLine: { appendSwitch() {} }, whenReady: () => new Promise(() => {}), on() {}, getPath: () => directory },
         ipcMain: { handle: (name, fn) => handlers.set(name, fn) }, BrowserWindow: {} };
       if (name === './build-tools') return {
         environmentAtRoot(selected, env) {
