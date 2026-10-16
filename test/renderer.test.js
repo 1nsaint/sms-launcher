@@ -38,7 +38,7 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
       replaceChildren(...children) { this.textContent = children.map(text).join(''); }, append() {}, focus() {},
       children: [], appendChild(child) { this.children.push(child); return child; },
       close() { this.open = false; }, showModal() { this.open = true; },
-      dataset: {}, getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelectorAll: () => [], getContext: () => ({ getExtension: () => null }),
+      dataset: {}, getBoundingClientRect: () => ({ left: 0, top: 0 }), querySelectorAll: () => [],
       showPopover() { this.dispatch('beforetoggle', { newState: 'open' }); this.open = true; this.dispatch('toggle', { newState: 'open' }); },
       hidePopover() { this.open = false; this.dispatch('toggle', { newState: 'closed' }); } };
   }

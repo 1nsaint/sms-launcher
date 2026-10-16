@@ -543,19 +543,10 @@ function renderConsoleState(active) {
   badge.classList.toggle('is-error', consoleFailed);
 }
 
-// Customize Mario draws Mario with WebGL 2. Where the graphics driver can't
-// (blocklisted or missing GPU drivers), its banner stays hidden.
-const webglAvailable = (() => {
-  try {
-    const gl = document.createElement('canvas').getContext('webgl2');
-    gl?.getExtension('WEBGL_lose_context')?.loseContext();
-    return Boolean(gl);
-  } catch (_) { return false; }
-})();
-
-// Customize Mario needs a disc to read Mario from and WebGL 2 to draw him.
+// Customize Mario needs a disc to read Mario from. It only uses WebGL while
+// open, and says so there if the computer can't draw him.
 function showCustomizeMario() {
-  $('customize-mario').hidden = !current?.romReady || !webglAvailable;
+  $('customize-mario').hidden = !current?.romReady;
 }
 
 function refresh(data) {

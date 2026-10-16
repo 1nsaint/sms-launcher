@@ -15,11 +15,14 @@ let viewer = null, model = null, look = Colors.normalizeLook(), saveTimer = null
 
 $('customize-mario').addEventListener('click', () => {
   dialog.showModal();
-  if (viewer) viewer.start();
+  if (model) show();
   else loading ||= load();
 });
+// Nothing of Mario's view stays on the GPU while the dialog is closed: the
+// launcher keeps no WebGL context while the game or a build runs.
 dialog.addEventListener('close', () => {
-  viewer?.stop();
+  viewer?.dispose();
+  viewer = null;
   if (saveTimer) { clearTimeout(saveTimer); save(); }
 });
 
@@ -29,19 +32,33 @@ async function load() {
     const result = await window.sms.marioModel();
     model = result.model;
     look = Colors.normalizeLook(result.look);
-    try { viewer = createViewer($('mario-stage'), model); }
-    catch (_) { throw new Error("Your graphics driver can't show Mario in 3D here. Updating it may help."); }
     renderControls();
-    viewer.paint(look.colors);
-    viewer.setAloha(look.aloha);
-    viewer.setFludd(look.fludd, look.nozzle);
-    if (dialog.open) viewer.start();
-    setStatus('');
-    // Fade Mario in once his first frame is drawn.
-    requestAnimationFrame(() => requestAnimationFrame(() => $('mario-stage').classList.add('ready')));
+    if (dialog.open) show();
+    else setStatus('');
   } catch (error) {
     setStatus(error.message || String(error));
   } finally { loading = null; }
+}
+
+// Mario's view on a fresh canvas (a canvas whose context was let go can't
+// make another), painted in the current look.
+function show() {
+  if (viewer) return;
+  const canvas = $('mario-stage').cloneNode(false);
+  canvas.classList.remove('ready');
+  $('mario-stage').replaceWith(canvas);
+  try { viewer = createViewer(canvas, model); }
+  catch (_) {
+    setStatus("Your graphics driver can't show Mario in 3D here. Updating it may help.");
+    return;
+  }
+  viewer.paint(look.colors);
+  viewer.setAloha(look.aloha);
+  viewer.setFludd(look.fludd, look.nozzle);
+  viewer.start();
+  setStatus('');
+  // Fade Mario in once his first frame is drawn.
+  requestAnimationFrame(() => requestAnimationFrame(() => canvas.classList.add('ready')));
 }
 
 // A message over the stage; `loading` adds the spinner.
@@ -59,9 +76,9 @@ function change(update) {
     paintQueued = true;
     requestAnimationFrame(() => {
       paintQueued = false;
-      viewer.paint(look.colors);
-      viewer.setAloha(look.aloha);
-      viewer.setFludd(look.fludd, look.nozzle);
+      viewer?.paint(look.colors);
+      viewer?.setAloha(look.aloha);
+      viewer?.setFludd(look.fludd, look.nozzle);
     });
   }
   syncControls();
@@ -184,7 +201,14 @@ function syncControls() {
 // --- Viewer --------------------------------------------------------------------
 
 function createViewer(canvas, data) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  // The GPU process can go away (a driver reset, or a crash): say so rather than freeze.
+  let disposed = false;
+  canvas.addEventListener('webglcontextlost', () => {
+    if (disposed) return;
+    running = false;
+    setStatus('Mario\'s 3D view stopped. Close Customize Mario and open it again.');
+  });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   const scene = new THREE.Scene();
@@ -322,7 +346,8 @@ function createViewer(canvas, data) {
     camera.aspect = width / height;
     camera.updateProjectionMatrix();
   }
-  new ResizeObserver(resize).observe(canvas.parentElement);
+  const observer = new ResizeObserver(resize);
+  observer.observe(canvas.parentElement);
 
   let running = false, started = 0, frame = 0;
   function tick(now) {
@@ -345,6 +370,21 @@ function createViewer(canvas, data) {
       requestAnimationFrame(tick);
     },
     stop() { running = false; },
+    // Frees every GPU resource and the WebGL context itself.
+    dispose() {
+      disposed = true;
+      running = false;
+      observer.disconnect();
+      scene.traverse(object => {
+        if (!object.isMesh) return;
+        object.geometry.dispose();
+        object.material.dispose();
+      });
+      for (const { texture } of textures) texture.dispose();
+      gradient.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+    },
     paint(colors) {
       for (const { source, pixels, texture } of textures) {
         Colors.recolor(source, data.references, colors, pixels);
