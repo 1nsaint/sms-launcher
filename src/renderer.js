@@ -553,11 +553,13 @@ const webglAvailable = (() => {
   } catch (_) { return false; }
 })();
 
-// Customize Mario isn't announced yet: its banner shows once ` (backtick) is
-// pressed on the home screen, until it's pressed again.
+// Customize Mario's banner shows on Beta builds. Elsewhere it isn't announced
+// yet: it shows once ` (backtick) is pressed on the home screen, until it's
+// pressed again.
 let customizeMarioShown = localStorage.getItem('customizeMario') === 'shown';
 function showCustomizeMario() {
-  $('customize-mario').hidden = !customizeMarioShown || !current?.romReady || !webglAvailable;
+  const beta = /^\d+\.\d+\.\d+-beta\./.test(current?.game?.launcherVersion || '');
+  $('customize-mario').hidden = !(beta || customizeMarioShown) || !current?.romReady || !webglAvailable;
 }
 document.addEventListener('keydown', event => {
   if (event.code !== 'Backquote' || event.repeat || capture || document.querySelector('dialog[open]')

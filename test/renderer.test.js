@@ -544,3 +544,16 @@ test('the Customize Mario banner stays hidden until ` is pressed on the home scr
   const again = await renderer(state(), null, undefined, {}, new Map([['customizeMario', 'shown']]));
   assert.equal(again.elements.get('customize-mario').hidden, false);
 });
+
+test('Beta builds show the Customize Mario banner without `, once a disc is chosen', async () => {
+  const beta = state();
+  beta.game = { ...beta.game, launcherVersion: '0.1.61-beta.4' };
+  const ui = await renderer(beta);
+  assert.equal(ui.elements.get('customize-mario').hidden, false);
+  ui.key('Backquote');
+  assert.equal(ui.elements.get('customize-mario').hidden, false, 'still shown on Beta');
+  const noDisc = state();
+  noDisc.game = { ...noDisc.game, launcherVersion: '0.1.61-beta.4' };
+  noDisc.romReady = false;
+  assert.equal((await renderer(noDisc)).elements.get('customize-mario').hidden, true);
+});
