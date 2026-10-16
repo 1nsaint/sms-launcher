@@ -9,6 +9,7 @@ const { execFileSync } = require('node:child_process');
 const game = require('../src/game-version');
 const port = require('../src/port');
 const tools = require('../src/build-tools');
+const portable = require('../src/portable');
 const settings = port.normalizeSettings();
 
 function fixture(t) {
@@ -300,6 +301,38 @@ test('build records the matching tool location and requests preparation again if
   assert.equal(game.isCurrent(root, settings), true);
   fs.rmSync(toolRoot, { recursive: true });
   assert.equal(game.isCurrent(root, settings), false);
+});
+
+test('a moved portable folder keeps its build current, plays with its own tools, and relinks its packs', t => {
+  const { root: home } = fixture(t);
+  const old = path.join(home, 'old', 'SMS-Launcher-Portable');
+  const moved = path.join(home, 'new', 'SMS-Launcher-Portable');
+  const repo = path.join(moved, 'sms-pc-port');
+  for (const [folder, commit] of [['', game.release.commit], ['decomp', game.release.decomp]]) {
+    fs.mkdirSync(path.join(repo, folder, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(repo, folder, '.git', 'HEAD'), `${commit}\n`);
+  }
+  const binary = port.binaryPath(repo, settings);
+  fs.mkdirSync(path.dirname(binary), { recursive: true });
+  fs.writeFileSync(binary, 'built before the move');
+  fs.mkdirSync(path.join(moved, 'build-tools', 'windows-x64', 'msys64'), { recursive: true });
+  // Recorded on the computer it was built on, with its slashes.
+  const record = { ...game.identity(settings), toolRoot: 'D:\\Games\\SMS-Launcher-Portable\\build-tools\\windows-x64' };
+  fs.writeFileSync(path.join(path.dirname(binary), 'launcher-build.json'), JSON.stringify(record));
+  assert.equal(game.isCurrent(repo, settings, undefined, null), false);
+  assert.equal(game.isCurrent(repo, settings, undefined, moved), true);
+  assert.equal(game.toolRoot(repo, settings, moved), path.join(moved, 'build-tools', 'windows-x64'));
+  assert.equal(game.toolRoot(repo, settings, null), record.toolRoot);
+
+  const packs = path.join(moved, 'sms-pc-port.releases', 'abc1234-0000', 'mods', 'textures');
+  fs.mkdirSync(packs, { recursive: true });
+  fs.writeFileSync(path.join(packs, 'tex1_test.png'), 'textures');
+  fs.mkdirSync(path.join(repo, 'mods'), { recursive: true });
+  fs.symlinkSync(path.join(old, 'sms-pc-port.releases', 'abc1234-0000', 'mods', 'textures'), path.join(repo, 'mods', 'textures'),
+    process.platform === 'win32' ? 'junction' : 'dir');
+  assert.deepEqual(game.relinkUserFolders(repo, file => portable.relocated(file, moved)), ['textures']);
+  assert.equal(fs.readFileSync(path.join(repo, 'mods', 'textures', 'tex1_test.png'), 'utf8'), 'textures');
+  assert.deepEqual(game.relinkUserFolders(repo, file => portable.relocated(file, moved)), []);
 });
 
 test('records the toolset root for x64-host cross compilers as well as native compilers', t => {

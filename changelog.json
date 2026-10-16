@@ -3,6 +3,7 @@
   "beta": {
     "launcher": [
       "Fixed choosing a game source on Windows failing with a \"Permission denied\" error, and failed game downloads showing that error instead of what went wrong.",
+      "Portable launcher: copy the launcher and its SMS-Launcher-Portable folder to another drive or computer and keep playing without setting up again. It finds a disc you keep beside the launcher or in that folder, and no longer rebuilds the game or fails to start it after a move.",
       "When a game update is ready, the ▾ beside the main button now offers Update only, to install it without starting the game, as well as Update & play and Play now. With Update automatically off, Play stays the main button and the update choices are in the ▾ menu."
     ],
     "game": [

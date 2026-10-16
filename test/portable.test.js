@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const portable = require('../src/portable');
 const saves = require('../src/saves');
@@ -56,4 +58,39 @@ test('a sibling folder with a similar name is not treated as inside', () => {
   assert.equal(portable.storedPaths({ repo: sibling }, root).repo, sibling);
   assert.equal(portable.storedPaths({ rom: '' }, root).rom, '');
   assert.deepEqual(portable.storedPaths({ repo: 'x' }, null), { repo: 'x' });
+});
+
+test('paths recorded inside the portable folder follow it to another drive or computer', t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sms portable move-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const moved = path.join(home, 'SMS-Launcher-Portable');
+  fs.mkdirSync(path.join(moved, 'build-tools', 'windows-x64'), { recursive: true });
+  const target = path.join(moved, 'build-tools', 'windows-x64');
+  assert.equal(portable.relocated('C:/Users/me/Desktop/SMS-Launcher-Portable/build-tools/windows-x64', moved), target);
+  assert.equal(portable.relocated('D:\\sms-launcher-portable\\build-tools\\windows-x64', moved), target);
+  // Left alone: paths that still exist, are outside any portable folder, or aren't in the moved one either.
+  assert.equal(portable.relocated(target, moved), target);
+  assert.equal(portable.relocated('C:/msys64', moved), 'C:/msys64');
+  assert.equal(portable.relocated('C:/Old/SMS-Launcher-Portable/gone', moved), 'C:/Old/SMS-Launcher-Portable/gone');
+  assert.equal(portable.relocated('C:/Old/SMS-Launcher-Portable/build-tools/windows-x64', null),
+    'C:/Old/SMS-Launcher-Portable/build-tools/windows-x64');
+});
+
+test('a disc left on the old computer is found in the portable folder or beside the exe', t => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'sms portable disc-'));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const base = path.join(home, 'SMS-Launcher-Portable');
+  fs.mkdirSync(base);
+  const validate = file => {
+    if (fs.readFileSync(file, 'utf8') !== 'GMSE01') throw new Error('not the game');
+    return file;
+  };
+  assert.equal(portable.findDisc(base, validate), null);
+  fs.writeFileSync(path.join(home, 'notes.txt'), 'GMSE01');
+  fs.writeFileSync(path.join(home, 'other.iso'), 'another game');
+  assert.equal(portable.findDisc(base, validate), null);
+  fs.writeFileSync(path.join(home, 'Sunshine.ISO'), 'GMSE01');
+  assert.equal(portable.findDisc(base, validate), path.join(home, 'Sunshine.ISO'));
+  fs.writeFileSync(path.join(base, 'sms.ciso'), 'GMSE01');
+  assert.equal(portable.findDisc(base, validate), path.join(base, 'sms.ciso'));
 });

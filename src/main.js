@@ -214,6 +214,25 @@ function loadConfig() {
         catch (error) { log(`Game recovery: ${error.message}`); }
       }
   config.completedSetup ||= fs.existsSync(port.binaryPath(config.repo, config.settings));
+  if (portableRoot) settleMovedPortableFolder();
+}
+
+// A portable folder copied to another drive or computer plays from where it is
+// now: its updates' links follow it, and when the chosen disc stayed behind, a
+// disc kept in the folder or beside the .exe is used.
+function settleMovedPortableFolder() {
+  for (const root of [config.repo, config.previousInstall?.repo].filter(Boolean)) {
+    try {
+      const relinked = game.relinkUserFolders(root, file => portable.relocated(file, portableRoot));
+      if (relinked.length) log(`Reconnected ${relinked.join(', ')} after the portable folder moved.`);
+    } catch (error) { log(`Could not reconnect the game's files after the portable folder moved: ${error.message}`); }
+  }
+  try { port.validateRom(config.rom); return; } catch (_) { /* missing or never chosen */ }
+  const disc = portable.findDisc(portableRoot, port.validateRom);
+  if (!disc) return;
+  config.rom = disc;
+  log(`Using the game disc at ${disc}.`);
+  try { saveConfig(); } catch (error) { log(`Could not save preferences: ${error.message}`); }
 }
 
 async function exclusive(label, callback, newLog = false) {
@@ -769,7 +788,7 @@ async function displayInfo() {
   if (process.platform !== 'win32') return { displays: [], error: 'HDR settings are for Windows.' };
   const root = config.repo, settings = config.settings;
   if (!root || !binaryReady(root, settings)) return { displays: [], error: 'Set up the game first to read your display.' };
-  const recordedTools = game.installed(root, settings)?.toolRoot || game.compilerToolRoot(root, settings);
+  const recordedTools = game.toolRoot(root, settings);
   const base = { ...process.env, SMS_ARCH: settings.arch };
   const env = recordedTools ? buildTools.environmentAtRoot(recordedTools, base) : toolEnv(base);
   const cmd = port.commandFor(root, 'run', ['--display-info'], process.platform, env);
@@ -792,7 +811,7 @@ async function play(installation = null) {
   const disc = port.gameDisc(root, rom, settings.eclipse);
   makeSaveBackup('before-play');
   const saveDir = saves.prepareSaveDirectory(currentSaveDirectory());
-  const recordedTools = game.installed(root, settings)?.toolRoot || game.compilerToolRoot(root, settings);
+  const recordedTools = game.toolRoot(root, settings);
   const env = recordedTools
     ? buildTools.environmentAtRoot(recordedTools, { ...port.buildEnvironment(settings, disc, root), SMS_SAVE_DIR: saveDir })
     : toolEnv({ ...port.buildEnvironment(settings, disc, root), SMS_SAVE_DIR: saveDir });
