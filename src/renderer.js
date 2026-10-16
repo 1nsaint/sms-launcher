@@ -543,6 +543,30 @@ function renderConsoleState(active) {
   badge.classList.toggle('is-error', consoleFailed);
 }
 
+// Customize Mario draws Mario with WebGL 2. Where the graphics driver can't
+// (blocklisted or missing GPU drivers), its banner stays hidden.
+const webglAvailable = (() => {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    gl?.getExtension('WEBGL_lose_context')?.loseContext();
+    return Boolean(gl);
+  } catch (_) { return false; }
+})();
+
+// Customize Mario isn't announced yet: its banner shows once ` (backtick) is
+// pressed on the home screen, until it's pressed again.
+let customizeMarioShown = localStorage.getItem('customizeMario') === 'shown';
+function showCustomizeMario() {
+  $('customize-mario').hidden = !customizeMarioShown || !current?.romReady || !webglAvailable;
+}
+document.addEventListener('keydown', event => {
+  if (event.code !== 'Backquote' || event.repeat || capture || document.querySelector('dialog[open]')
+    || event.target.closest?.('input, textarea, select, [contenteditable]')) return;
+  customizeMarioShown = !customizeMarioShown;
+  localStorage.setItem('customizeMario', customizeMarioShown ? 'shown' : 'hidden');
+  showCustomizeMario();
+});
+
 function refresh(data) {
   if (Number.isFinite(data.logResetSequence)) resetLog(data.logResetSequence);
   current = data;
@@ -558,6 +582,7 @@ function refresh(data) {
   $('rom-path').title = data.romError || config.rom;
   $('settings-rom-path').textContent = data.romError || config.rom || 'No disc file selected';
   $('settings-rom-path').title = data.romError || config.rom;
+  showCustomizeMario();
   $('choose-rom').hidden = !data.romReady;
   showWizardStep(data);
   renderMacTools(data.tools);

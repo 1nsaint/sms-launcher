@@ -28,6 +28,8 @@ const { createActivityLog } = require('./activity-log');
 const { observeProcess, exitDescription, failureMessage } = require('./process-output');
 const { createSessionLog } = require('./session-log');
 const displayScale = require('./display-scale');
+const marioModel = require('./mario-model');
+const marioColors = require('./mario-colors');
 
 const DISCORD_INVITE = 'https://discord.gg/NvUXmm8dB9';
 // Microsoft's free Windows HDR Calibration app (Microsoft Store product 9N7F2SM5D1LR).
@@ -197,7 +199,9 @@ function loadConfig() {
     // Whether Play has offered Add to Steam on SteamOS yet (it does once).
     steamOffered: Boolean(saved.steamOffered),
     // Whether the launcher has offered to fix a Steam shortcut without --no-sandbox.
-    steamFixOffered: Boolean(saved.steamFixOffered)
+    steamFixOffered: Boolean(saved.steamFixOffered),
+    // Customize Mario: the colours the player chose and the Shine shirt.
+    marioLook: marioColors.normalizeLook(saved.marioLook)
   };
   if (config.installId !== saved.installId) {
     try { saveConfig(); } catch (error) { log(`Could not save preferences: ${error.message}`); }
@@ -1160,6 +1164,17 @@ function registerHandlers() {
     config.rom = port.validateRom(chosen.filePaths[0]);
     saveConfig();
     return state();
+  });
+  // Mario's model from the chosen disc, read once per disc while the launcher runs.
+  let marioCache = null;
+  ipcMain.handle('mario-model', () => {
+    const rom = port.validateRom(config.rom);
+    if (marioCache?.rom !== rom) marioCache = { rom, model: marioModel.loadMario(rom) };
+    return { model: marioCache.model, look: config.marioLook };
+  });
+  ipcMain.handle('save-mario-look', (_event, look) => {
+    config.marioLook = marioColors.normalizeLook(look);
+    saveConfig();
   });
   ipcMain.handle('choose-repo', async () => {
     if (portableRoot) throw new Error('The portable launcher keeps its setup files in its own folder.');

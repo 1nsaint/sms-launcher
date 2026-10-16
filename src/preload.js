@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('sms', {
   displayInfo: () => ipcRenderer.invoke('display-info'),
   openHdrCalibration: () => ipcRenderer.invoke('open-hdr-calibration'),
   chooseRom: () => ipcRenderer.invoke('choose-rom'),
+  marioModel: () => ipcRenderer.invoke('mario-model'),
+  saveMarioLook: look => ipcRenderer.invoke('save-mario-look', look),
   chooseRepo: () => ipcRenderer.invoke('choose-repo'),
   chooseLocation: () => ipcRenderer.invoke('choose-location'),
   installPort: () => ipcRenderer.invoke('install-port'),

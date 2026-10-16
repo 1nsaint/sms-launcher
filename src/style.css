@@ -532,3 +532,36 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 .launcher-modal.steam-modal .steam-primary { border: 0; border-radius: 2px; padding: 9px 22px; background: linear-gradient(90deg, #75b022 5%, #588a1b 95%); color: #d2efa9; text-transform: uppercase; letter-spacing: .04em; }
 .launcher-modal.steam-modal .steam-primary:hover:not(:disabled) { background: linear-gradient(90deg, #8ed629 5%, #6aa621 95%); color: #fff; }
 .gamepad-active .launcher-modal.steam-modal :is(button, input):focus, .gamepad-active .launcher-modal.steam-modal .switch:focus-within { outline-color: #66c0f4; }
+
+/* Customize Mario */
+.mario-logo { background: linear-gradient(135deg, #e3322c, #b8211c); }
+.mario-logo svg { fill: #fff; }
+.mario-look-modal { width: min(1040px, calc(100% - 36px)); height: min(680px, calc(100% - 56px)); max-height: none; }
+.mario-look-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 330px; }
+.mario-stage-wrap { position: relative; min-height: 0; overflow: hidden; background: radial-gradient(ellipse 70% 55% at 50% 42%, #ffffff 0%, #dff1f4 55%, #b9dde4 100%); }
+.mario-stage-wrap::after { position: absolute; left: 50%; bottom: 13%; width: 38%; height: 6%; border-radius: 50%; background: radial-gradient(closest-side, #1a46564d, transparent); transform: translateX(-50%); content: ''; pointer-events: none; }
+.mario-stage { position: relative; z-index: 1; display: block; width: 100%; height: 100%; cursor: grab; outline: none; touch-action: none; }
+.mario-stage:active { cursor: grabbing; }
+.mario-stage:focus-visible { box-shadow: inset 0 0 0 3px #2fa3b0; }
+.mario-status { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 30px; color: #2c5560; font-size: 14px; font-weight: 650; text-align: center; }
+.mario-preview-note { position: absolute; left: 14px; bottom: 12px; z-index: 2; padding: 5px 10px; border-radius: 20px; background: #ffffffc7; color: #4d6a71; font-size: 11px; pointer-events: none; }
+.mario-panel { min-height: 0; overflow: auto; padding: 16px 20px 22px; border-left: 1px solid #dce7e6; background: #f8faf9; }
+.mario-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.mario-preset { padding: 5px 11px; border: 1px solid #cddcdc; border-radius: 20px; background: #fff; color: #2e4c53; font-size: 12px; font-weight: 650; }
+.mario-preset:hover { border-color: #7fbfc6; }
+.mario-preset.active { border-color: #158188; background: #158188; color: #fff; }
+.mario-swatches { display: grid; gap: 2px; padding: 4px 12px; border: 1px solid #e1e9e8; border-radius: 12px; background: #fff; }
+.mario-swatch { display: grid; grid-template-columns: 1fr auto 26px; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eef2f1; cursor: pointer; }
+.mario-swatch:last-child { border-bottom: 0; }
+.mario-swatch[hidden] { display: none; }
+.mario-swatch-name { color: #334b51; font-size: 13px; font-weight: 600; }
+.mario-swatch.changed .mario-swatch-name::after { margin-left: 6px; color: #158188; font-size: 10px; content: '●'; }
+.mario-swatch input[type="color"] { width: 46px; height: 26px; padding: 2px; border: 1px solid #cddcdc; border-radius: 7px; background: #fff; cursor: pointer; }
+.mario-swatch input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.mario-swatch input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 4px; }
+.mario-reset { width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: #7a8b8f; font-size: 15px; visibility: hidden; }
+.mario-swatch.changed .mario-reset { visibility: visible; }
+.mario-reset:hover { background: #e8f1f1; color: #17343d; }
+.mario-aloha { padding: 8px 0; }
+.mario-nozzles { padding: 4px 0 10px; }
+.mario-nozzles[hidden] { display: none; }
