@@ -867,7 +867,8 @@ function marioFrom(rom) {
 function marioLookPack(rom, root, settings) {
   const directory = path.join(app.getPath('userData'), 'mario-look');
   const look = marioColors.normalizeLook(config.marioLook);
-  if (settings.eclipse || !Object.keys(look.colors).length) {
+  if (settings.eclipse || !look.inGame || !Object.keys(look.colors).length) {
+    if (!look.inGame && Object.keys(look.colors).length) log('Mario keeps his usual colours: Use in the game is off in Customize Mario.');
     fs.rmSync(directory, { recursive: true, force: true });
     return null;
   }

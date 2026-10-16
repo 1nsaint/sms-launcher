@@ -569,5 +569,6 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 .mario-swatch.changed .mario-reset { visibility: visible; }
 .mario-reset:hover { background: #e8f1f1; color: #17343d; }
 .mario-aloha { padding: 8px 0; }
+.mario-in-game { margin-bottom: 12px; padding: 8px 12px; border: 1px solid #e1e9e8; border-radius: 12px; background: #fff; }
 .mario-nozzles { padding: 4px 0 10px; }
 .mario-nozzles[hidden] { display: none; }

@@ -186,7 +186,7 @@ test('--play opens the launcher after the game fails so its log is visible', asy
 });
 
 test('chosen Mario colours reach the game as a look pack, from the HD pack when HD textures are on', async t => {
-  const look = { colors: { hat: '#00ff00' }, aloha: false, fludd: false, nozzle: 'spray' };
+  const look = { colors: { hat: '#00ff00' }, inGame: true, aloha: false, fludd: false, nozzle: 'spray' };
   const hd = fixture(t, { textures: true, marioLook: look });
   await hd.play();
   assert.equal(hd.bakes.length, 1);
@@ -208,6 +208,19 @@ test('without chosen colours, with Eclipse, or when painting fails, Mario plays 
   assert.deepEqual(none.bakes, []);
   assert.equal(none.starts[0].options.env.SMS_MARIO_LOOK, undefined);
   assert.equal(fs.existsSync(path.join(none.directory, 'mario-look')), false, 'an old look pack is removed');
+
+  const off = fixture(t, { marioLook: { colors: { hat: '#00ff00' }, inGame: false } });
+  fs.mkdirSync(path.join(off.directory, 'mario-look'));
+  await off.play();
+  assert.deepEqual(off.bakes, [], 'Use in the game off: nothing is painted');
+  assert.equal(off.starts[0].options.env.SMS_MARIO_LOOK, undefined);
+  assert.equal(fs.existsSync(path.join(off.directory, 'mario-look')), false);
+  assert.match(off.logText(), /Use in the game is off/);
+
+  const classic = fixture(t, { marioLook: { colors: {}, inGame: true } });
+  await classic.play();
+  assert.deepEqual(classic.bakes, [], 'the Classic preset chooses no colours, so nothing is painted');
+  assert.equal(classic.starts[0].options.env.SMS_MARIO_LOOK, undefined);
 
   const eclipse = fixture(t, { eclipse: true, marioLook: { colors: { hat: '#00ff00' } } });
   await eclipse.play();

@@ -230,9 +230,11 @@ test('border texels blend the two regions they sit between', () => {
 
 test('saved looks keep only known regions, #rrggbb colours and real nozzles', () => {
   assert.deepEqual(colors.normalizeLook({ colors: { hat: '#00FF00', shirt: 'green', cape: '#ffffff' }, aloha: 'yes', fludd: 1, nozzle: 'yoshi' }),
-    { colors: { hat: '#00ff00' }, aloha: false, fludd: false, nozzle: 'spray' });
-  assert.deepEqual(colors.normalizeLook(undefined), { colors: {}, aloha: false, fludd: false, nozzle: 'spray' });
-  assert.deepEqual(colors.normalizeLook({ aloha: true, fludd: true, nozzle: 'hover' }), { colors: {}, aloha: true, fludd: true, nozzle: 'hover' });
+    { colors: { hat: '#00ff00' }, inGame: true, aloha: false, fludd: false, nozzle: 'spray' });
+  assert.deepEqual(colors.normalizeLook(undefined), { colors: {}, inGame: true, aloha: false, fludd: false, nozzle: 'spray' });
+  assert.deepEqual(colors.normalizeLook({ aloha: true, fludd: true, nozzle: 'hover' }), { colors: {}, inGame: true, aloha: true, fludd: true, nozzle: 'hover' });
+  assert.equal(colors.normalizeLook({ inGame: false }).inGame, false);
+  assert.equal(colors.normalizeLook({ inGame: 'no' }).inGame, true, 'only an explicit false turns it off');
   for (const preset of colors.PRESETS) assert.deepEqual(colors.normalize(preset.colors), preset.colors, preset.id);
 });
 

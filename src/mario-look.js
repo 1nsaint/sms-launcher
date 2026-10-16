@@ -110,6 +110,8 @@ function swatch(id) {
   return row;
 }
 
+$('mario-in-game').addEventListener('change', event => change(() => { look.inGame = event.target.checked; }));
+
 function renderControls() {
   const presets = $('mario-presets');
   presets.replaceChildren(...Colors.PRESETS.map(preset => {
@@ -183,6 +185,9 @@ function syncControls() {
   const key = JSON.stringify(look.colors);
   for (const button of document.querySelectorAll('.mario-preset[data-preset]'))
     button.classList.toggle('active', JSON.stringify(Colors.PRESETS.find(p => p.id === button.dataset.preset).colors) === key);
+  $('mario-in-game').checked = look.inGame;
+  $('mario-preview-note').textContent = look.inGame ? 'Your colours show in the game the next time it starts.'
+    : 'The game shows Mario as usual: Use in the game is off.';
   const aloha = $('mario-aloha');
   if (aloha) aloha.checked = look.aloha;
   for (const row of document.querySelectorAll('.mario-swatch[data-region="alohaShirt"]')) row.hidden = !look.aloha;

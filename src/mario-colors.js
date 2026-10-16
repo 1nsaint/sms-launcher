@@ -287,11 +287,13 @@
     { id: 'rocket', label: 'Rocket' }, { id: 'turbo', label: 'Turbo' },
   ];
 
-  // The saved look: chosen colours, whether Mario wears his Shine shirt, and
-  // whether he wears FLUDD and with which nozzle.
+  // The saved look: chosen colours, whether the game uses them (on unless
+  // turned off), whether Mario wears his Shine shirt, and whether he wears
+  // FLUDD and with which nozzle.
   function normalizeLook(look) {
     return {
-      colors: normalize(look?.colors), aloha: look?.aloha === true, fludd: look?.fludd === true,
+      colors: normalize(look?.colors), inGame: look?.inGame !== false,
+      aloha: look?.aloha === true, fludd: look?.fludd === true,
       nozzle: NOZZLES.some(n => n.id === look?.nozzle) ? look.nozzle : 'spray',
     };
   }
