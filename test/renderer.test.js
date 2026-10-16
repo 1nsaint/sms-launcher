@@ -17,12 +17,12 @@ function state() {
   };
 }
 
-async function renderer(data = state(), copyError = null, notes = { releases: [], unseen: [], current: '0.1.39' }, steam = {}, storage = new Map()) {
+async function renderer(data = state(), copyError = null, notes = { releases: [], unseen: [], current: '0.1.39' }, steam = {}) {
   const importResult = { imported: [{ name: 'GMSE04_super_mario_sunshine', game: 'eclipse', title: 'Super Mario Eclipse',
     shines: [3, null, 1], file: '04-GMSE-super_mario_sunshine.gci' }],
   skipped: [{ file: '01-GMSE-super_mario_sunshine.gci', reason: 'Super Mario Sunshine save with no saved progress' },
     { file: '04-GMSE-super_mario_eclipse.gci', reason: 'Eclipse settings, not a game save' }] };
-  const changelogSeen = [], calls = [], elements = new Map(), droppedFiles = [], listeners = {}, gamepad = {}, documentListeners = {};
+  const changelogSeen = [], calls = [], elements = new Map(), droppedFiles = [], listeners = {}, gamepad = {};
   let logCallback, resetCallback, activityCallback;
   const text = node => node.textContent + node.children.map(text).join(' ');
   function element(classes = '') {
@@ -65,15 +65,10 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     addToSteam: async options => { calls.push(['addToSteam', options]); steam = { ...steam, inSteam: true, needsFix: false, offer: false, offerFix: false };
       return { added: true, play: options.play, name: 'Super Mario Sunshine', artwork: 5, total: 5 }; }
   };
-  const localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) };
-  const context = vm.createContext({ console, setInterval() {}, requestAnimationFrame: callback => setImmediate(callback), localStorage,
+  const context = vm.createContext({ console, setInterval() {}, requestAnimationFrame: callback => setImmediate(callback),
     window: { sms, smsActivityLog: require('../src/activity-log'), smsRumble: require('../src/rumble'), smsGamepadNav: { start: options => Object.assign(gamepad, options) },
       addEventListener() {} }, document: {
     getElementById(id) { assert.ok(elements.has(id), `Missing HTML element ${id}`); return elements.get(id); },
-    addEventListener(event, callback) { (documentListeners[event] ||= []).push(callback); },
-    querySelector(selector) {
-      return selector === 'dialog[open]' ? ['page-settings', 'changelog', 'mac-tools-help', 'mario-look'].map(id => elements.get(id)).find(modal => modal.open) || null : null;
-    },
     querySelectorAll(selector) {
       const modals = ['page-settings', 'changelog', 'mac-tools-help'].map(id => elements.get(id));
       return selector === '.launcher-modal' ? modals : selector === '.launcher-modal[open]' ? modals.filter(modal => modal.open) : [];
@@ -86,8 +81,7 @@ async function renderer(data = state(), copyError = null, notes = { releases: []
     async resetLog(sequence) { resetCallback(sequence); await new Promise(setImmediate); },
     async emitActivity(active) { activityCallback(active); await new Promise(setImmediate); },
     async refresh() { vm.runInContext('refresh(current)', context); },
-    async click(id) { elements.get(id).click(); await new Promise(setImmediate); },
-    key(code, target = {}) { for (const callback of documentListeners.keydown || []) callback({ code, repeat: false, target: { closest: () => null, ...target } }); } };
+    async click(id) { elements.get(id).click(); await new Promise(setImmediate); } };
 }
 
 const offered = ui => ['menu-update-play', 'menu-update-only', 'menu-play-now'].filter(id => !ui.elements.get(id).hidden);
@@ -523,37 +517,9 @@ test("a shortcut made by hand without --no-sandbox is offered a fix when the lau
   assert.match(fromSteam.elements.get('steam-banner-detail').textContent, /add --no-sandbox to its launch options/);
 });
 
-test('the Customize Mario banner stays hidden until ` is pressed on the home screen, and is remembered', async () => {
-  const storage = new Map();
-  const ui = await renderer(state(), null, undefined, {}, storage);
-  const banner = () => ui.elements.get('customize-mario').hidden;
-  assert.equal(banner(), true);
-  ui.key('KeyA');
-  assert.equal(banner(), true);
-  ui.key('Backquote');
-  assert.equal(banner(), false);
-  assert.equal(storage.get('customizeMario'), 'shown');
-  ui.elements.get('page-settings').open = true;
-  ui.key('Backquote');
-  assert.equal(banner(), false, 'ignored while a dialog is open');
-  ui.elements.get('page-settings').open = false;
-  ui.key('Backquote', { closest: () => ({}) });
-  assert.equal(banner(), false, 'ignored while typing');
-  ui.key('Backquote');
-  assert.equal(banner(), true);
-  const again = await renderer(state(), null, undefined, {}, new Map([['customizeMario', 'shown']]));
-  assert.equal(again.elements.get('customize-mario').hidden, false);
-});
-
-test('Beta builds show the Customize Mario banner without `, once a disc is chosen', async () => {
-  const beta = state();
-  beta.game = { ...beta.game, launcherVersion: '0.1.61-beta.4' };
-  const ui = await renderer(beta);
-  assert.equal(ui.elements.get('customize-mario').hidden, false);
-  ui.key('Backquote');
-  assert.equal(ui.elements.get('customize-mario').hidden, false, 'still shown on Beta');
+test('the Customize Mario banner shows once a disc is chosen', async () => {
+  assert.equal((await renderer()).elements.get('customize-mario').hidden, false);
   const noDisc = state();
-  noDisc.game = { ...noDisc.game, launcherVersion: '0.1.61-beta.4' };
   noDisc.romReady = false;
   assert.equal((await renderer(noDisc)).elements.get('customize-mario').hidden, true);
 });
