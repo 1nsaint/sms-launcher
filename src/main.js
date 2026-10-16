@@ -51,6 +51,12 @@ if (portableRoot) {
   app.setPath('userData', portableRoot);
   app.setPath('sessionData', path.join(portableRoot, 'Electron'));
 }
+// Customize Mario draws with WebGL. Where the GPU can't be used (a blocklisted
+// driver, or Chromium turning hardware acceleration off after its GPU process
+// keeps crashing, as on a Windows 7 PC with an old Intel driver), WebGL falls
+// back to SwiftShader on the CPU instead of being missing. Chromium only gates
+// that as unsafe for untrusted web pages; the launcher shows only its own files.
+app.commandLine.appendSwitch('enable-unsafe-swiftshader');
 const activityLog = createActivityLog();
 const partialOutput = new Map();
 const sessionLog = createSessionLog(() => app.getPath('userData'), error =>
