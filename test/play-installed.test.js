@@ -10,7 +10,7 @@ const { createRequire } = require('node:module');
 const { EventEmitter } = require('node:events');
 const port = require('../src/port');
 
-function fixture(t, { metadata = true, textures = false, eclipse = false, discordPresence = true, autoUpdate = true, exitCode = 0 } = {}) {
+function fixture(t, { metadata = true, textures = false, eclipse = false, discordPresence = true, autoUpdate = true, exitCode = 0, marioLook, bake } = {}) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'sms installed game-'));
   t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
   const root = path.join(directory, 'port');
@@ -39,8 +39,8 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
     fs.mkdirSync(port.texturePackDirectory(root), { recursive: true });
     fs.writeFileSync(path.join(port.texturePackDirectory(root), 'tex1_fixture.png'), 'installed texture');
   }
-  const config = { repo: root, rom, settings, completedSetup: true, saveDirectory: path.join(directory, 'saves') };
-  const starts = [], backups = [], handlers = new Map(), environments = [], activities = [];
+  const config = { repo: root, rom, settings, completedSetup: true, saveDirectory: path.join(directory, 'saves'), marioLook };
+  const starts = [], backups = [], handlers = new Map(), environments = [], activities = [], bakes = [];
   const sourcePath = path.resolve(__dirname, '../src/main.js');
   const nativeRequire = createRequire(sourcePath);
   const context = vm.createContext({ console, process, Buffer, setTimeout, setInterval, __dirname: path.dirname(sourcePath),
@@ -58,6 +58,8 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
         async check() { throw new Error('Playing must not prepare new tools'); },
         status() { throw new Error('Playing must not prepare new tools'); } };
       if (name === './discord') return { createPresence: () => ({ set: activity => activities.push(activity), stop() {} }) };
+      if (name === './mario-model') return { loadMario: () => ({ references: ['disc references'] }) };
+      if (name === './mario-pack') return { bake(options) { bakes.push(options); return bake ? bake(options) : options.directory; } };
       if (name === './saves') return {
         backupRoot: () => path.join(directory, 'backups'),
         backupSaves(_saves, _backups, reason) { backups.push(reason); return { empty: true, message: 'No saves yet' }; },
@@ -73,7 +75,7 @@ function fixture(t, { metadata = true, textures = false, eclipse = false, discor
     }, fixtureConfig: config });
   vm.runInContext(fs.readFileSync(sourcePath, 'utf8') + '\nconfig = fixtureConfig; registerHandlers();' +
     '\nglobalThis.logText = () => JSON.stringify(activityLog.snapshot());', context);
-  return { config, starts, backups, environments, activities, binary, record, toolRoot, root, play: () => handlers.get('play')(),
+  return { config, starts, backups, environments, activities, bakes, directory, binary, record, toolRoot, root, play: () => handlers.get('play')(),
     invoke: name => handlers.get(name)(), playDirectly: () => context.playDirectly(), logText: () => context.logText() };
 }
 
@@ -181,4 +183,39 @@ test('--play opens the launcher after the game fails so its log is visible', asy
   assert.equal(await f.playDirectly(), false);
   assert.equal(f.starts.length, 1);
   assert.deepEqual(f.backups, ['before-play', 'after-play']);
+});
+
+test('chosen Mario colours reach the game as a look pack, from the HD pack when HD textures are on', async t => {
+  const look = { colors: { hat: '#00ff00' }, aloha: false, fludd: false, nozzle: 'spray' };
+  const hd = fixture(t, { textures: true, marioLook: look });
+  await hd.play();
+  assert.equal(hd.bakes.length, 1);
+  const plainCopy = value => JSON.parse(JSON.stringify(value));  // values made in main.js's context
+  assert.deepEqual(plainCopy(hd.bakes[0].look), look);
+  assert.deepEqual(plainCopy(hd.bakes[0].references), ['disc references']);
+  assert.deepEqual(plainCopy(hd.bakes[0].packDirectories), [port.texturePackDirectory(hd.root)]);
+  assert.equal(hd.starts[0].options.env.SMS_MARIO_LOOK, path.join(hd.directory, 'mario-look'));
+
+  const plain = fixture(t, { marioLook: look });
+  await plain.play();
+  assert.deepEqual(plainCopy(plain.bakes[0].packDirectories), [], 'HD textures off: the disc textures are repainted');
+});
+
+test('without chosen colours, with Eclipse, or when painting fails, Mario plays as he is', async t => {
+  const none = fixture(t);
+  fs.mkdirSync(path.join(none.directory, 'mario-look'));
+  await none.play();
+  assert.deepEqual(none.bakes, []);
+  assert.equal(none.starts[0].options.env.SMS_MARIO_LOOK, undefined);
+  assert.equal(fs.existsSync(path.join(none.directory, 'mario-look')), false, 'an old look pack is removed');
+
+  const eclipse = fixture(t, { eclipse: true, marioLook: { colors: { hat: '#00ff00' } } });
+  await eclipse.play();
+  assert.deepEqual(eclipse.bakes, []);
+
+  const failing = fixture(t, { marioLook: { colors: { hat: '#00ff00' } }, bake() { throw new Error('disc unreadable'); } });
+  await failing.play();
+  assert.equal(failing.starts.length, 1);
+  assert.equal(failing.starts[0].options.env.SMS_MARIO_LOOK, undefined);
+  assert.match(failing.logText(), /Mario keeps his usual colours: disc unreadable/);
 });

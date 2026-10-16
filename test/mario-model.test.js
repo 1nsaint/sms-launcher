@@ -195,8 +195,8 @@ test('the cap letter is the red the emblem encloses, even where the emblem is cu
   assert.equal(mask[6 * size + 10], region('hat'));
 });
 
-test('a part covers the texels its triangles reach, wrapping round the texture', () => {
-  const covered = colors.coverage(8, 8, Float32Array.of(0, 0, 0.5, 0, 0, 0.5), Uint32Array.of(0, 1, 2));
+test('a part covers the texels its triangles reach, wrapping round a repeating texture', () => {
+  const covered = colors.coverage(8, 8, Float32Array.of(0, 0, 0.5, 0, 0, 0.5), Uint32Array.of(0, 1, 2), undefined, 1, 1);
   assert.equal(covered[0], 1);
   assert.equal(covered[1 * 8 + 1], 1);
   assert.equal(covered[7 * 8 + 7], 1);  // one texel of margin wraps to the far corner
