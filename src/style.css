@@ -546,6 +546,8 @@ pre { height: 120px; margin: 0; padding: 12px; overflow: auto; border-radius: 8p
 .mario-stage:focus-visible { box-shadow: inset 0 0 0 3px #2fa3b0; }
 .mario-status { position: absolute; inset: 0; z-index: 2; display: grid; place-content: center; justify-items: center; gap: 16px; padding: 30px; color: #2c5560; font-size: 14px; font-weight: 650; text-align: center; }
 .mario-status[hidden] { display: none; }
+.mario-status-actions { justify-content: center; }
+.mario-status-actions[hidden] { display: none; }
 .mario-loader { display: none; width: 48px; height: 48px; border: 5px solid #20788924; border-top-color: #e3322c; border-right-color: #f2cc22; border-bottom-color: #2f6fd6; border-radius: 50%; animation: spin .9s linear infinite; }
 .mario-status.loading .mario-loader { display: block; }
 .mario-status.loading #mario-status-text { animation: mario-pulse 1.6s ease-in-out infinite; }
